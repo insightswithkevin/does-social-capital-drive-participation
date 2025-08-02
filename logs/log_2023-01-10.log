@@ -1,0 +1,3925 @@
+------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  C:\Users\kevin\OneDrive\Documents\Studium\HU\SoSe2022\VS Demokratie in Zeiten von Ungleic
+> hheiten\Hausarbeit\Okonkwo_617877_Hausarbeit\logs\log_2023-01-10.log
+  log type:  text
+ opened on:  10 Jan 2023, 22:23:29
+
+. 
+. * Run-Code
+. do "jobs\data_import_merge.do"                          // data import and merging
+
+. **** Import/Mergen der Datensätze
+. 
+. 
+. * Reduzierung des ESS-9-Datensatzes um spezifische Länder
+. 
+. use "inputs\ESS9e03_1.dta", clear
+
+. 
+. drop if cntry == "CH" | cntry == "CY" | cntry == "IS" | cntry == "ME" | cntry == "NO" | cntry == "RS
+> " |  cntry == "SI" // Ausschluss dieser Länder aus der Analyse
+(9,151 observations deleted)
+
+. 
+. save "outputs\ESS9_reduced.dta", replace
+file outputs\ESS9_reduced.dta saved
+
+. 
+. clear
+
+. 
+. 
+. * Vorbereitung des Datensatzes zu Sozialausgaben der Länder
+. 
+. import delimited "inputs\spr_exp_sum_page_linear.csv", clear
+(encoding automatically selected: ISO-8859-1)
+(9 vars, 43 obs)
+
+. 
+. keep geo obs_value
+
+. 
+. replace geo = "GB" if geo == "UK"
+(1 real change made)
+
+. 
+. rename geo cntry
+
+. 
+. rename obs_value welfare_exp
+
+. 
+. collapse (mean) welfare_exp, by(cntry)
+
+. 
+. format welfare_exp %3.2f 
+
+. 
+. save "outputs\aggregated_spr_exp.dta", replace
+file outputs\aggregated_spr_exp.dta saved
+
+. 
+. clear
+
+. 
+. 
+. * Vorbereitung des Datensatzes zu Wohlstand der Länder
+. 
+. import delimited "inputs\gdp_capita_pps.csv", clear
+(encoding automatically selected: ISO-8859-1)
+(9 vars, 44 obs)
+
+. 
+. keep geo obs_value
+
+. 
+. replace geo = "GB" if geo == "UK"
+(2 real changes made)
+
+. 
+. rename geo cntry
+
+. 
+. rename obs_value wealth
+
+. 
+. collapse (mean) wealth, by(cntry)
+
+. 
+. replace wealth = round(wealth)
+(11 real changes made)
+
+. 
+. save "outputs\aggregated_gdp.dta", replace
+file outputs\aggregated_gdp.dta saved
+
+. 
+. clear
+
+. 
+. 
+. * Mergen beider Datensätze 
+. 
+. use "outputs\ESS9_reduced.dta", clear
+
+. 
+. merge m:1 cntry using "outputs\aggregated_spr_exp.dta"
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            40,368  (_merge==3)
+    -----------------------------------------
+
+. 
+. cap drop _merge
+
+. 
+. merge m:1 cntry using "outputs\aggregated_gdp.dta"
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            40,368  (_merge==3)
+    -----------------------------------------
+
+. 
+. save "outputs\ESS9_merged.dta", replace
+file outputs\ESS9_merged.dta saved
+
+. 
+. clear
+
+. 
+. 
+. 
+. 
+end of do-file
+
+. do "jobs\data_variable_preparation.do"          // preparation of variables
+
+. **** Vorbereitung der Variablen
+. 
+. use "outputs\ESS9_merged.dta", clear
+
+. 
+. ** Abhängige Variable - Index für politische Partizipation
+. 
+. fre vote                // Voted last national election
+
+vote -- Voted last national election
+-----------------------------------------------------------------------------
+                                |      Freq.    Percent      Valid       Cum.
+--------------------------------+--------------------------------------------
+Valid   1  Yes                  |      29088      72.06      72.79      72.79
+        2  No                   |       7950      19.69      19.89      92.68
+        3  Not eligible to vote |       2925       7.25       7.32     100.00
+        Total                   |      39963      99.00     100.00           
+Missing .b Refusal              |        175       0.43                      
+        .c Don't know           |        217       0.54                      
+        .d No answer            |         13       0.03                      
+        Total                   |        405       1.00                      
+Total                           |      40368     100.00                      
+-----------------------------------------------------------------------------
+
+. cap drop pol_vote
+
+. recode vote (1 = 1 "Yes") (2 = 0 "No") (else = .), gen(pol_vote)
+(11280 differences between vote and pol_vote)
+
+. fre pol_vote
+
+pol_vote -- RECODE of vote (Voted last national election)
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0 No  |       7950      19.69      21.46      21.46
+        1 Yes |      29088      72.06      78.54     100.00
+        Total |      37038      91.75     100.00           
+Missing .     |       3330       8.25                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+. lab var pol_vote "Voted last national election"
+
+. 
+. fre contplt             // Contacted politician or government official last 12 months
+
+contplt -- Contacted politician or government official last 12 months
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  Yes        |       6020      14.91      14.98      14.98
+        2  No         |      34174      84.66      85.02     100.00
+        Total         |      40194      99.57     100.00           
+Missing .b Refusal    |         82       0.20                      
+        .c Don't know |         92       0.23                      
+        Total         |        174       0.43                      
+Total                 |      40368     100.00                      
+-------------------------------------------------------------------
+
+. cap drop pol_contact
+
+. recode contplt (1 = 1 "Yes") (2 = 0 "No"), gen(pol_contact)
+(34174 differences between contplt and pol_contact)
+
+. fre pol_contact
+
+pol_contact -- RECODE of contplt (Contacted politician or government official last 12 months)
+------------------------------------------------------------
+               |      Freq.    Percent      Valid       Cum.
+---------------+--------------------------------------------
+Valid   0  No  |      34174      84.66      85.02      85.02
+        1  Yes |       6020      14.91      14.98     100.00
+        Total  |      40194      99.57     100.00           
+Missing .b     |         82       0.20                      
+        .c     |         92       0.23                      
+        Total  |        174       0.43                      
+Total          |      40368     100.00                      
+------------------------------------------------------------
+
+. lab var pol_contact "Contact with Politicians"
+
+. 
+. fre wrkprty             // Worked in political party or action group last 12 months
+
+wrkprty -- Worked in political party or action group last 12 months
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  Yes        |       1426       3.53       3.55       3.55
+        2  No         |      38776      96.06      96.45     100.00
+        Total         |      40202      99.59     100.00           
+Missing .b Refusal    |         94       0.23                      
+        .c Don't know |         72       0.18                      
+        Total         |        166       0.41                      
+Total                 |      40368     100.00                      
+-------------------------------------------------------------------
+
+. cap drop pol_party
+
+. recode wrkprty (1 = 1 "Yes") (2 = 0 "No"), gen(pol_party)
+(38776 differences between wrkprty and pol_party)
+
+. fre pol_party
+
+pol_party -- RECODE of wrkprty (Worked in political party or action group last 12 months)
+------------------------------------------------------------
+               |      Freq.    Percent      Valid       Cum.
+---------------+--------------------------------------------
+Valid   0  No  |      38776      96.06      96.45      96.45
+        1  Yes |       1426       3.53       3.55     100.00
+        Total  |      40202      99.59     100.00           
+Missing .b     |         94       0.23                      
+        .c     |         72       0.18                      
+        Total  |        166       0.41                      
+Total          |      40368     100.00                      
+------------------------------------------------------------
+
+. lab var pol_party "Worked in political party or action group"
+
+. 
+. fre wrkorg              // Worked in another organisation or association last 12 months
+
+wrkorg -- Worked in another organisation or association last 12 months
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  Yes        |       6123      15.17      15.24      15.24
+        2  No         |      34061      84.38      84.76     100.00
+        Total         |      40184      99.54     100.00           
+Missing .b Refusal    |         91       0.23                      
+        .c Don't know |         93       0.23                      
+        Total         |        184       0.46                      
+Total                 |      40368     100.00                      
+-------------------------------------------------------------------
+
+. cap drop pol_org
+
+. recode wrkorg (1 = 1 "Yes") (2 = 0 "No"), gen(pol_org)
+(34061 differences between wrkorg and pol_org)
+
+. fre pol_org
+
+pol_org -- RECODE of wrkorg (Worked in another organisation or association last 12 months)
+------------------------------------------------------------
+               |      Freq.    Percent      Valid       Cum.
+---------------+--------------------------------------------
+Valid   0  No  |      34061      84.38      84.76      84.76
+        1  Yes |       6123      15.17      15.24     100.00
+        Total  |      40184      99.54     100.00           
+Missing .b     |         91       0.23                      
+        .c     |         93       0.23                      
+        Total  |        184       0.46                      
+Total          |      40368     100.00                      
+------------------------------------------------------------
+
+. lab var pol_org "Worked in organisation or association"
+
+. 
+. fre badge               // Worn or displayed campaign badge/sticker last 12 months
+
+badge -- Worn or displayed campaign badge/sticker last 12 months
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  Yes        |       3056       7.57       7.61       7.61
+        2  No         |      37122      91.96      92.39     100.00
+        Total         |      40178      99.53     100.00           
+Missing .b Refusal    |         93       0.23                      
+        .c Don't know |         97       0.24                      
+        Total         |        190       0.47                      
+Total                 |      40368     100.00                      
+-------------------------------------------------------------------
+
+. cap drop pol_badge
+
+. recode badge (1 = 1 "Yes") (2 = 0 "No"), gen(pol_badge)
+(37122 differences between badge and pol_badge)
+
+. fre pol_badge
+
+pol_badge -- RECODE of badge (Worn or displayed campaign badge/sticker last 12 months)
+------------------------------------------------------------
+               |      Freq.    Percent      Valid       Cum.
+---------------+--------------------------------------------
+Valid   0  No  |      37122      91.96      92.39      92.39
+        1  Yes |       3056       7.57       7.61     100.00
+        Total  |      40178      99.53     100.00           
+Missing .b     |         93       0.23                      
+        .c     |         97       0.24                      
+        Total  |        190       0.47                      
+Total          |      40368     100.00                      
+------------------------------------------------------------
+
+. lab var pol_badge "Worn or displayed campaign badge/sticker"
+
+. 
+. fre sgnptit             // Signed petition last 12 months
+
+sgnptit -- Signed petition last 12 months
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  Yes        |       9969      24.70      24.85      24.85
+        2  No         |      30150      74.69      75.15     100.00
+        Total         |      40119      99.38     100.00           
+Missing .b Refusal    |         99       0.25                      
+        .c Don't know |        149       0.37                      
+        .d No answer  |          1       0.00                      
+        Total         |        249       0.62                      
+Total                 |      40368     100.00                      
+-------------------------------------------------------------------
+
+. cap drop pol_petition
+
+. recode sgnptit (1 = 1 "Yes") (2 = 0 "No"), gen(pol_petition)
+(30150 differences between sgnptit and pol_petition)
+
+. fre pol_petition
+
+pol_petition -- RECODE of sgnptit (Signed petition last 12 months)
+------------------------------------------------------------
+               |      Freq.    Percent      Valid       Cum.
+---------------+--------------------------------------------
+Valid   0  No  |      30150      74.69      75.15      75.15
+        1  Yes |       9969      24.70      24.85     100.00
+        Total  |      40119      99.38     100.00           
+Missing .b     |         99       0.25                      
+        .c     |        149       0.37                      
+        .d     |          1       0.00                      
+        Total  |        249       0.62                      
+Total          |      40368     100.00                      
+------------------------------------------------------------
+
+. lab var pol_petition "Signed petition"
+
+. 
+. fre pbldmn              // Taken part in lawful public demonstration last 12 months
+
+pbldmn -- Taken part in lawful public demonstration last 12 months
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  Yes        |       2959       7.33       7.36       7.36
+        2  No         |      37218      92.20      92.64     100.00
+        Total         |      40177      99.53     100.00           
+Missing .b Refusal    |         93       0.23                      
+        .c Don't know |         98       0.24                      
+        Total         |        191       0.47                      
+Total                 |      40368     100.00                      
+-------------------------------------------------------------------
+
+. cap drop pol_demo
+
+. recode pbldmn (1 = 1 "Yes") (2 = 0 "No"), gen(pol_demo)
+(37218 differences between pbldmn and pol_demo)
+
+. fre pol_demo
+
+pol_demo -- RECODE of pbldmn (Taken part in lawful public demonstration last 12 months)
+------------------------------------------------------------
+               |      Freq.    Percent      Valid       Cum.
+---------------+--------------------------------------------
+Valid   0  No  |      37218      92.20      92.64      92.64
+        1  Yes |       2959       7.33       7.36     100.00
+        Total  |      40177      99.53     100.00           
+Missing .b     |         93       0.23                      
+        .c     |         98       0.24                      
+        Total  |        191       0.47                      
+Total          |      40368     100.00                      
+------------------------------------------------------------
+
+. lab var pol_demo "Attended public demonstration"
+
+. 
+. fre bctprd              // Boycotted certain products last 12 months
+
+bctprd -- Boycotted certain products last 12 months
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  Yes        |       7199      17.83      17.95      17.95
+        2  No         |      32906      81.52      82.05     100.00
+        Total         |      40105      99.35     100.00           
+Missing .b Refusal    |         83       0.21                      
+        .c Don't know |        180       0.45                      
+        Total         |        263       0.65                      
+Total                 |      40368     100.00                      
+-------------------------------------------------------------------
+
+. cap drop pol_boycott
+
+. recode bctprd (1 = 1 "Yes") (2 = 0 "No"), gen(pol_boycott)
+(32906 differences between bctprd and pol_boycott)
+
+. fre pol_boycott
+
+pol_boycott -- RECODE of bctprd (Boycotted certain products last 12 months)
+------------------------------------------------------------
+               |      Freq.    Percent      Valid       Cum.
+---------------+--------------------------------------------
+Valid   0  No  |      32906      81.52      82.05      82.05
+        1  Yes |       7199      17.83      17.95     100.00
+        Total  |      40105      99.35     100.00           
+Missing .b     |         83       0.21                      
+        .c     |        180       0.45                      
+        Total  |        263       0.65                      
+Total          |      40368     100.00                      
+------------------------------------------------------------
+
+. lab var pol_boycott "Boycotted products"
+
+. 
+. fre pstplonl    // Posted or shared anything about politics online last 12 months
+
+pstplonl -- Posted or shared anything about politics online last 12 months
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  Yes        |       6232      15.44      15.53      15.53
+        2  No         |      33900      83.98      84.47     100.00
+        Total         |      40132      99.42     100.00           
+Missing .b Refusal    |         98       0.24                      
+        .c Don't know |        138       0.34                      
+        Total         |        236       0.58                      
+Total                 |      40368     100.00                      
+-------------------------------------------------------------------
+
+. cap drop pol_online
+
+. recode pstplonl (1 = 1 "Yes") (2 = 0 "No"), gen(pol_online)
+(33900 differences between pstplonl and pol_online)
+
+. fre pol_online
+
+pol_online -- RECODE of pstplonl (Posted or shared anything about politics online last 12 mont
+------------------------------------------------------------
+               |      Freq.    Percent      Valid       Cum.
+---------------+--------------------------------------------
+Valid   0  No  |      33900      83.98      84.47      84.47
+        1  Yes |       6232      15.44      15.53     100.00
+        Total  |      40132      99.42     100.00           
+Missing .b     |         98       0.24                      
+        .c     |        138       0.34                      
+        Total  |        236       0.58                      
+Total          |      40368     100.00                      
+------------------------------------------------------------
+
+. lab var pol_online "Posted politics-related content online"
+
+. 
+. gen index_politparti = pol_vote + 1.5*pol_contact + 2*pol_party + 1.5*pol_org + 1.5*pol_badge +pol_p
+> etition + pol_demo + pol_boycott + pol_online
+(3,875 missing values generated)
+
+. fre index_politparti
+
+index_politparti
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |       5402      13.38      14.80      14.80
+        1     |      14554      36.05      39.88      54.68
+        1.5   |        368       0.91       1.01      55.69
+        2     |       3904       9.67      10.70      66.39
+        2.5   |       2336       5.79       6.40      72.79
+        3     |       1888       4.68       5.17      77.97
+        3.5   |       1798       4.45       4.93      82.89
+        4     |       1048       2.60       2.87      85.76
+        4.5   |       1265       3.13       3.47      89.23
+        5     |        749       1.86       2.05      91.28
+        5.5   |        713       1.77       1.95      93.24
+        6     |        671       1.66       1.84      95.08
+        6.5   |        306       0.76       0.84      95.91
+        7     |        448       1.11       1.23      97.14
+        7.5   |        185       0.46       0.51      97.65
+        8     |        254       0.63       0.70      98.34
+        8.5   |        166       0.41       0.45      98.80
+        9     |        107       0.27       0.29      99.09
+        9.5   |        116       0.29       0.32      99.41
+        10    |         50       0.12       0.14      99.55
+        10.5  |         97       0.24       0.27      99.81
+        11.5  |         68       0.17       0.19     100.00
+        Total |      36493      90.40     100.00           
+Missing .     |       3875       9.60                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+. lab var index_politparti "Political participation"
+
+. 
+. corr pol_*
+(obs=36,493)
+
+             | pol_vote pol_co~t pol_pa~y  pol_org pol_ba~e pol_pe~n pol_demo pol_bo~t pol_on~e
+-------------+---------------------------------------------------------------------------------
+    pol_vote |   1.0000
+ pol_contact |   0.1167   1.0000
+   pol_party |   0.0713   0.2753   1.0000
+     pol_org |   0.1315   0.2854   0.2534   1.0000
+   pol_badge |   0.0712   0.1989   0.2741   0.2640   1.0000
+pol_petition |   0.1279   0.2260   0.1564   0.2643   0.2608   1.0000
+    pol_demo |   0.0591   0.1453   0.1849   0.1759   0.2793   0.2823   1.0000
+ pol_boycott |   0.1066   0.1822   0.1074   0.2335   0.2025   0.3540   0.2052   1.0000
+  pol_online |   0.0698   0.1948   0.1848   0.1790   0.2329   0.3300   0.2414   0.2603   1.0000
+
+
+. 
+. alpha pol_*, item c std gen(alpha_index)
+
+Test scale = mean(standardized items)
+
+                                                            Average
+                             Item-test     Item-rest       interitem
+Item         |  Obs  Sign   correlation   correlation     correlation     alpha
+-------------+-----------------------------------------------------------------
+pol_vote     | 36493   +       0.3628        0.1651          0.2298      0.7047
+pol_contact  | 36493   +       0.5428        0.3715          0.1987      0.6649
+pol_party    | 36493   +       0.5187        0.3427          0.2029      0.6706
+pol_org      | 36493   +       0.5764        0.4121          0.1929      0.6566
+pol_badge    | 36493   +       0.5757        0.4113          0.1930      0.6568
+pol_petition | 36493   +       0.6209        0.4670          0.1852      0.6452
+pol_demo     | 36493   +       0.5322        0.3588          0.2005      0.6674
+pol_boycott  | 36493   +       0.5484        0.3782          0.1977      0.6635
+pol_online   | 36493   +       0.5570        0.3885          0.1963      0.6614
+-------------+-----------------------------------------------------------------
+Test scale   |                                               0.1997      0.6919
+-------------------------------------------------------------------------------
+
+. 
+. corr index_politparti alpha_index
+(obs=36,493)
+
+             | index_~i alpha_~x
+-------------+------------------
+index_poli~i |   1.0000
+ alpha_index |   0.9932   1.0000
+
+
+. 
+. 
+. ** Zentrale unabhängige Variablen - Sozialkapital und Merkmale des Wohlfahrtsstaats
+. 
+. * Sozialkapital --> Dimensionen: Vertrauen, Netzwerke und Norme 
+. 
+. // soziales Vertrauen
+. 
+. fre ppltrst             // Most people can be trusted or you can't be too careful
+
+ppltrst -- Most people can be trusted or you can't be too careful
+-----------------------------------------------------------------------------------
+                                      |      Freq.    Percent      Valid       Cum.
+--------------------------------------+--------------------------------------------
+Valid   0  You can't be too careful   |       2467       6.11       6.13       6.13
+        1  1                          |       1396       3.46       3.47       9.60
+        2  2                          |       2719       6.74       6.76      16.36
+        3  3                          |       3918       9.71       9.74      26.09
+        4  4                          |       3692       9.15       9.17      35.27
+        5  5                          |       7823      19.38      19.44      54.71
+        6  6                          |       4693      11.63      11.66      66.37
+        7  7                          |       6566      16.27      16.32      82.68
+        8  8                          |       4923      12.20      12.23      94.92
+        9  9                          |       1340       3.32       3.33      98.25
+        10 Most people can be trusted |        706       1.75       1.75     100.00
+        Total                         |      40243      99.69     100.00           
+Missing .b Refusal                    |         29       0.07                      
+        .c Don't know                 |         96       0.24                      
+        Total                         |        125       0.31                      
+Total                                 |      40368     100.00                      
+-----------------------------------------------------------------------------------
+
+. fre pplfair             // Most people try to take advantage of you, or try to be fair
+
+pplfair -- Most people try to take advantage of you, or try to be fair
+------------------------------------------------------------------------------------------------
+                                                   |      Freq.    Percent      Valid       Cum.
+---------------------------------------------------+--------------------------------------------
+Valid   0  Most people try to take advantage of me |       1192       2.95       2.98       2.98
+        1  1                                       |        878       2.17       2.19       5.17
+        2  2                                       |       1801       4.46       4.50       9.66
+        3  3                                       |       2903       7.19       7.25      16.91
+        4  4                                       |       3438       8.52       8.58      25.49
+        5  5                                       |       8000      19.82      19.97      45.47
+        6  6                                       |       5068      12.55      12.65      58.12
+        7  7                                       |       7561      18.73      18.88      76.99
+        8  8                                       |       6175      15.30      15.42      92.41
+        9  9                                       |       1934       4.79       4.83      97.24
+        10 Most people try to be fair              |       1106       2.74       2.76     100.00
+        Total                                      |      40056      99.23     100.00           
+Missing .b Refusal                                 |         18       0.04                      
+        .c Don't know                              |        294       0.73                      
+        Total                                      |        312       0.77                      
+Total                                              |      40368     100.00                      
+------------------------------------------------------------------------------------------------
+
+. fre pplhlp              // Most of the time people helpful or mostly looking out for themselves
+
+pplhlp -- Most of the time people helpful or mostly looking out for themselves
+----------------------------------------------------------------------------------------------
+                                                 |      Freq.    Percent      Valid       Cum.
+-------------------------------------------------+--------------------------------------------
+Valid   0  People mostly look out for themselves |       1727       4.28       4.30       4.30
+        1  1                                     |       1338       3.31       3.33       7.63
+        2  2                                     |       2883       7.14       7.17      14.80
+        3  3                                     |       4453      11.03      11.08      25.88
+        4  4                                     |       4485      11.11      11.16      37.04
+        5  5                                     |       8191      20.29      20.38      57.42
+        6  6                                     |       5120      12.68      12.74      70.16
+        7  7                                     |       6144      15.22      15.29      85.45
+        8  8                                     |       4110      10.18      10.23      95.68
+        9  9                                     |       1069       2.65       2.66      98.34
+        10 People mostly try to be helpful       |        669       1.66       1.66     100.00
+        Total                                    |      40189      99.56     100.00           
+Missing .b Refusal                               |         32       0.08                      
+        .c Don't know                            |        147       0.36                      
+        Total                                    |        179       0.44                      
+Total                                            |      40368     100.00                      
+----------------------------------------------------------------------------------------------
+
+. 
+. // soziale Netzwerke
+. 
+. fre sclmeet             // How often socially meet with friends, relatives or colleagues
+
+sclmeet -- How often socially meet with friends, relatives or colleagues
+-------------------------------------------------------------------------------
+                                  |      Freq.    Percent      Valid       Cum.
+----------------------------------+--------------------------------------------
+Valid   1  Never                  |        762       1.89       1.89       1.89
+        2  Less than once a month |       3721       9.22       9.25      11.15
+        3  Once a month           |       3802       9.42       9.45      20.60
+        4  Several times a month  |       8227      20.38      20.45      41.05
+        5  Once a week            |       7336      18.17      18.24      59.29
+        6  Several times a week   |      10669      26.43      26.52      85.81
+        7  Every day              |       5706      14.13      14.19     100.00
+        Total                     |      40223      99.64     100.00           
+Missing .b Refusal                |         37       0.09                      
+        .c Don't know             |        106       0.26                      
+        .d No answer              |          2       0.00                      
+        Total                     |        145       0.36                      
+Total                             |      40368     100.00                      
+-------------------------------------------------------------------------------
+
+. fre inprdsc             // How many people with whom you can discuss intimate and personal matters
+
+inprdsc -- How many people with whom you can discuss intimate and personal matters
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   0  None       |       2576       6.38       6.47       6.47
+        1  1          |       6423      15.91      16.13      22.59
+        2  2          |       8753      21.68      21.98      44.57
+        3  3          |       8827      21.87      22.16      66.73
+        4  4-6        |       9761      24.18      24.51      91.24
+        5  7-9        |       1917       4.75       4.81      96.05
+        6  10 or more |       1574       3.90       3.95     100.00
+        Total         |      39831      98.67     100.00           
+Missing .b Refusal    |        151       0.37                      
+        .c Don't know |        384       0.95                      
+        .d No answer  |          2       0.00                      
+        Total         |        537       1.33                      
+Total                 |      40368     100.00                      
+-------------------------------------------------------------------
+
+. fre sclact              // Take part in social activities compared to others of same age
+
+sclact -- Take part in social activities compared to others of same age
+----------------------------------------------------------------------------
+                               |      Freq.    Percent      Valid       Cum.
+-------------------------------+--------------------------------------------
+Valid   1  Much less than most |       4236      10.49      10.68      10.68
+        2  Less than most      |      10744      26.62      27.08      37.75
+        3  About the same      |      17960      44.49      45.27      83.02
+        4  More than most      |       5504      13.63      13.87      96.89
+        5  Much more than most |       1233       3.05       3.11     100.00
+        Total                  |      39677      98.29     100.00           
+Missing .b Refusal             |         47       0.12                      
+        .c Don't know          |        641       1.59                      
+        .d No answer           |          3       0.01                      
+        Total                  |        691       1.71                      
+Total                          |      40368     100.00                      
+----------------------------------------------------------------------------
+
+. 
+. // soziale Normen
+. 
+. fre ipudrst             // Important to understand different people
+
+ipudrst -- Important to understand different people
+---------------------------------------------------------------------------
+                              |      Freq.    Percent      Valid       Cum.
+------------------------------+--------------------------------------------
+Valid   1  Very much like me  |       7381      18.28      18.75      18.75
+        2  Like me            |      16325      40.44      41.47      60.22
+        3  Somewhat like me   |       9361      23.19      23.78      84.00
+        4  A little like me   |       4289      10.62      10.89      94.89
+        5  Not like me        |       1608       3.98       4.08      98.98
+        6  Not like me at all |        403       1.00       1.02     100.00
+        Total                 |      39367      97.52     100.00           
+Missing .b Refusal            |        242       0.60                      
+        .c Don't know         |        689       1.71                      
+        .d No answer          |         70       0.17                      
+        Total                 |       1001       2.48                      
+Total                         |      40368     100.00                      
+---------------------------------------------------------------------------
+
+. fre ipfrule             // Important to do what is told and follow rules
+
+ipfrule -- Important to do what is told and follow rules
+---------------------------------------------------------------------------
+                              |      Freq.    Percent      Valid       Cum.
+------------------------------+--------------------------------------------
+Valid   1  Very much like me  |       3393       8.41       8.65       8.65
+        2  Like me            |      10263      25.42      26.17      34.82
+        3  Somewhat like me   |       9530      23.61      24.30      59.12
+        4  A little like me   |       7099      17.59      18.10      77.22
+        5  Not like me        |       6777      16.79      17.28      94.50
+        6  Not like me at all |       2158       5.35       5.50     100.00
+        Total                 |      39220      97.16     100.00           
+Missing .b Refusal            |        273       0.68                      
+        .c Don't know         |        800       1.98                      
+        .d No answer          |         75       0.19                      
+        Total                 |       1148       2.84                      
+Total                         |      40368     100.00                      
+---------------------------------------------------------------------------
+
+. fre iphlppl             // Important to help people and care for others well-being
+
+iphlppl -- Important to help people and care for others well-being
+---------------------------------------------------------------------------
+                              |      Freq.    Percent      Valid       Cum.
+------------------------------+--------------------------------------------
+Valid   1  Very much like me  |       9978      24.72      25.24      25.24
+        2  Like me            |      16552      41.00      41.87      67.11
+        3  Somewhat like me   |       8772      21.73      22.19      89.30
+        4  A little like me   |       3241       8.03       8.20      97.50
+        5  Not like me        |        800       1.98       2.02      99.52
+        6  Not like me at all |        190       0.47       0.48     100.00
+        Total                 |      39533      97.93     100.00           
+Missing .b Refusal            |        246       0.61                      
+        .c Don't know         |        490       1.21                      
+        .d No answer          |         99       0.25                      
+        Total                 |        835       2.07                      
+Total                         |      40368     100.00                      
+---------------------------------------------------------------------------
+
+. fre iplylfr             // Important to be loyal to friends and devote to people close
+
+iplylfr -- Important to be loyal to friends and devote to people close
+---------------------------------------------------------------------------
+                              |      Freq.    Percent      Valid       Cum.
+------------------------------+--------------------------------------------
+Valid   1  Very much like me  |      13701      33.94      34.61      34.61
+        2  Like me            |      17173      42.54      43.38      78.00
+        3  Somewhat like me   |       5975      14.80      15.09      93.09
+        4  A little like me   |       2012       4.98       5.08      98.17
+        5  Not like me        |        565       1.40       1.43      99.60
+        6  Not like me at all |        158       0.39       0.40     100.00
+        Total                 |      39584      98.06     100.00           
+Missing .b Refusal            |        247       0.61                      
+        .c Don't know         |        444       1.10                      
+        .d No answer          |         93       0.23                      
+        Total                 |        784       1.94                      
+Total                         |      40368     100.00                      
+---------------------------------------------------------------------------
+
+. fre imptrad             // Important to follow traditions and customs
+
+imptrad -- Important to follow traditions and customs
+---------------------------------------------------------------------------
+                              |      Freq.    Percent      Valid       Cum.
+------------------------------+--------------------------------------------
+Valid   1  Very much like me  |       7830      19.40      19.78      19.78
+        2  Like me            |      12716      31.50      32.12      51.89
+        3  Somewhat like me   |       8833      21.88      22.31      74.20
+        4  A little like me   |       5209      12.90      13.16      87.36
+        5  Not like me        |       3533       8.75       8.92      96.28
+        6  Not like me at all |       1471       3.64       3.72     100.00
+        Total                 |      39592      98.08     100.00           
+Missing .b Refusal            |        248       0.61                      
+        .c Don't know         |        435       1.08                      
+        .d No answer          |         93       0.23                      
+        Total                 |        776       1.92                      
+Total                         |      40368     100.00                      
+---------------------------------------------------------------------------
+
+. 
+. cap drop norms_*
+
+. 
+. gen norms_understand = ipudrst
+(1,001 missing values generated)
+
+. gen norms_rules = ipfrule
+(1,148 missing values generated)
+
+. gen norms_care = iphlppl
+(835 missing values generated)
+
+. gen norms_loyal = iplylfr
+(784 missing values generated)
+
+. gen norms_traditions = imptrad
+(776 missing values generated)
+
+. 
+. recode norms_* (1=6) (2=5) (3=4) (4=3) (5=2) (6=1) // Umpolung zu einem intuitiven Wertebereich (1=S
+> timme überhaupt nicht zu) (5=Stimme voll und ganz zu)
+(39367 changes made to norms_understand)
+(39220 changes made to norms_rules)
+(39533 changes made to norms_care)
+(39584 changes made to norms_loyal)
+(39592 changes made to norms_traditions)
+
+. 
+. cap drop capital_*
+
+. 
+. gen capital_trust1 = ppltrst
+(125 missing values generated)
+
+. gen capital_trust2 = pplfair
+(312 missing values generated)
+
+. gen capital_trust3 = pplhlp
+(179 missing values generated)
+
+. gen capital_network1 = sclmeet
+(145 missing values generated)
+
+. gen capital_network2 = inprdsc
+(537 missing values generated)
+
+. gen capital_network3 = sclact
+(691 missing values generated)
+
+. gen capital_norms1 = norms_understand
+(1,001 missing values generated)
+
+. gen capital_norms2 = norms_rules
+(1,148 missing values generated)
+
+. gen capital_norms3 = norms_care
+(835 missing values generated)
+
+. gen capital_norms4 = norms_loyal
+(784 missing values generated)
+
+. gen capital_norms5 = norms_traditions
+(776 missing values generated)
+
+. 
+. fre capital_*
+
+capital_trust1
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |       2467       6.11       6.13       6.13
+        1     |       1396       3.46       3.47       9.60
+        2     |       2719       6.74       6.76      16.36
+        3     |       3918       9.71       9.74      26.09
+        4     |       3692       9.15       9.17      35.27
+        5     |       7823      19.38      19.44      54.71
+        6     |       4693      11.63      11.66      66.37
+        7     |       6566      16.27      16.32      82.68
+        8     |       4923      12.20      12.23      94.92
+        9     |       1340       3.32       3.33      98.25
+        10    |        706       1.75       1.75     100.00
+        Total |      40243      99.69     100.00           
+Missing .b    |         29       0.07                      
+        .c    |         96       0.24                      
+        Total |        125       0.31                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+capital_trust2
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |       1192       2.95       2.98       2.98
+        1     |        878       2.17       2.19       5.17
+        2     |       1801       4.46       4.50       9.66
+        3     |       2903       7.19       7.25      16.91
+        4     |       3438       8.52       8.58      25.49
+        5     |       8000      19.82      19.97      45.47
+        6     |       5068      12.55      12.65      58.12
+        7     |       7561      18.73      18.88      76.99
+        8     |       6175      15.30      15.42      92.41
+        9     |       1934       4.79       4.83      97.24
+        10    |       1106       2.74       2.76     100.00
+        Total |      40056      99.23     100.00           
+Missing .b    |         18       0.04                      
+        .c    |        294       0.73                      
+        Total |        312       0.77                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+capital_trust3
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |       1727       4.28       4.30       4.30
+        1     |       1338       3.31       3.33       7.63
+        2     |       2883       7.14       7.17      14.80
+        3     |       4453      11.03      11.08      25.88
+        4     |       4485      11.11      11.16      37.04
+        5     |       8191      20.29      20.38      57.42
+        6     |       5120      12.68      12.74      70.16
+        7     |       6144      15.22      15.29      85.45
+        8     |       4110      10.18      10.23      95.68
+        9     |       1069       2.65       2.66      98.34
+        10    |        669       1.66       1.66     100.00
+        Total |      40189      99.56     100.00           
+Missing .b    |         32       0.08                      
+        .c    |        147       0.36                      
+        Total |        179       0.44                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+capital_network1
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   1     |        762       1.89       1.89       1.89
+        2     |       3721       9.22       9.25      11.15
+        3     |       3802       9.42       9.45      20.60
+        4     |       8227      20.38      20.45      41.05
+        5     |       7336      18.17      18.24      59.29
+        6     |      10669      26.43      26.52      85.81
+        7     |       5706      14.13      14.19     100.00
+        Total |      40223      99.64     100.00           
+Missing .b    |         37       0.09                      
+        .c    |        106       0.26                      
+        .d    |          2       0.00                      
+        Total |        145       0.36                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+capital_network2
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |       2576       6.38       6.47       6.47
+        1     |       6423      15.91      16.13      22.59
+        2     |       8753      21.68      21.98      44.57
+        3     |       8827      21.87      22.16      66.73
+        4     |       9761      24.18      24.51      91.24
+        5     |       1917       4.75       4.81      96.05
+        6     |       1574       3.90       3.95     100.00
+        Total |      39831      98.67     100.00           
+Missing .b    |        151       0.37                      
+        .c    |        384       0.95                      
+        .d    |          2       0.00                      
+        Total |        537       1.33                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+capital_network3
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   1     |       4236      10.49      10.68      10.68
+        2     |      10744      26.62      27.08      37.75
+        3     |      17960      44.49      45.27      83.02
+        4     |       5504      13.63      13.87      96.89
+        5     |       1233       3.05       3.11     100.00
+        Total |      39677      98.29     100.00           
+Missing .b    |         47       0.12                      
+        .c    |        641       1.59                      
+        .d    |          3       0.01                      
+        Total |        691       1.71                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+capital_norms1
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   1     |        403       1.00       1.02       1.02
+        2     |       1608       3.98       4.08       5.11
+        3     |       4289      10.62      10.89      16.00
+        4     |       9361      23.19      23.78      39.78
+        5     |      16325      40.44      41.47      81.25
+        6     |       7381      18.28      18.75     100.00
+        Total |      39367      97.52     100.00           
+Missing .b    |        242       0.60                      
+        .c    |        689       1.71                      
+        .d    |         70       0.17                      
+        Total |       1001       2.48                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+capital_norms2
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   1     |       2158       5.35       5.50       5.50
+        2     |       6777      16.79      17.28      22.78
+        3     |       7099      17.59      18.10      40.88
+        4     |       9530      23.61      24.30      65.18
+        5     |      10263      25.42      26.17      91.35
+        6     |       3393       8.41       8.65     100.00
+        Total |      39220      97.16     100.00           
+Missing .b    |        273       0.68                      
+        .c    |        800       1.98                      
+        .d    |         75       0.19                      
+        Total |       1148       2.84                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+capital_norms3
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   1     |        190       0.47       0.48       0.48
+        2     |        800       1.98       2.02       2.50
+        3     |       3241       8.03       8.20      10.70
+        4     |       8772      21.73      22.19      32.89
+        5     |      16552      41.00      41.87      74.76
+        6     |       9978      24.72      25.24     100.00
+        Total |      39533      97.93     100.00           
+Missing .b    |        246       0.61                      
+        .c    |        490       1.21                      
+        .d    |         99       0.25                      
+        Total |        835       2.07                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+capital_norms4
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   1     |        158       0.39       0.40       0.40
+        2     |        565       1.40       1.43       1.83
+        3     |       2012       4.98       5.08       6.91
+        4     |       5975      14.80      15.09      22.00
+        5     |      17173      42.54      43.38      65.39
+        6     |      13701      33.94      34.61     100.00
+        Total |      39584      98.06     100.00           
+Missing .b    |        247       0.61                      
+        .c    |        444       1.10                      
+        .d    |         93       0.23                      
+        Total |        784       1.94                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+capital_norms5
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   1     |       1471       3.64       3.72       3.72
+        2     |       3533       8.75       8.92      12.64
+        3     |       5209      12.90      13.16      25.80
+        4     |       8833      21.88      22.31      48.11
+        5     |      12716      31.50      32.12      80.22
+        6     |       7830      19.40      19.78     100.00
+        Total |      39592      98.08     100.00           
+Missing .b    |        248       0.61                      
+        .c    |        435       1.08                      
+        .d    |         93       0.23                      
+        Total |        776       1.92                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+. 
+. quietly: pca capital_*
+
+. estat kmo // Kaiser-Meyer-Olkin-Kriterium
+
+Kaiser-Meyer-Olkin measure of sampling adequacy
+
+    -----------------------
+        Variable |     kmo 
+    -------------+---------
+    capital_tr~1 |  0.7377 
+    capital_tr~2 |  0.7282 
+    capital_tr~3 |  0.7686 
+    capital_ne~1 |  0.7106 
+    capital_ne~2 |  0.8114 
+    capital_ne~3 |  0.6881 
+    capital_no~1 |  0.7570 
+    capital_no~2 |  0.6235 
+    capital_no~3 |  0.7175 
+    capital_no~4 |  0.7299 
+    capital_no~5 |  0.6278 
+    -------------+---------
+         Overall |  0.7322 
+    -----------------------
+
+. 
+. pca capital_*
+
+Principal components/correlation                 Number of obs    =     37,397
+                                                 Number of comp.  =         11
+                                                 Trace            =         11
+    Rotation: (unrotated = principal)            Rho              =     1.0000
+
+    --------------------------------------------------------------------------
+       Component |   Eigenvalue   Difference         Proportion   Cumulative
+    -------------+------------------------------------------------------------
+           Comp1 |      2.67978      .823599             0.2436       0.2436
+           Comp2 |      1.85619      .506102             0.1687       0.4124
+           Comp3 |      1.35008      .301119             0.1227       0.5351
+           Comp4 |      1.04896       .25905             0.0954       0.6305
+           Comp5 |      .789915      .109705             0.0718       0.7023
+           Comp6 |       .68021     .0603214             0.0618       0.7641
+           Comp7 |      .619889     .0484336             0.0564       0.8205
+           Comp8 |      .571455     .0563262             0.0520       0.8724
+           Comp9 |      .515129     .0336052             0.0468       0.9192
+          Comp10 |      .481524     .0746638             0.0438       0.9630
+          Comp11 |       .40686            .             0.0370       1.0000
+    --------------------------------------------------------------------------
+
+Principal components (eigenvectors) 
+
+    ----------------------------------------------------------------------------------------------
+        Variable |    Comp1     Comp2     Comp3     Comp4     Comp5     Comp6     Comp7     Comp8 
+    -------------+--------------------------------------------------------------------------------
+    capital_tr~1 |   0.3946   -0.3280    0.2544    0.0373    0.0078   -0.0383    0.0412   -0.0035 
+    capital_tr~2 |   0.4034   -0.3164    0.2662    0.0240   -0.0617   -0.0596   -0.0710   -0.0093 
+    capital_tr~3 |   0.3749   -0.3022    0.2960    0.0621   -0.0938   -0.0421   -0.0280   -0.0190 
+    capital_ne~1 |   0.2846    0.0134   -0.5123    0.2172    0.0197   -0.3168   -0.6451    0.2992 
+    capital_ne~2 |   0.3440   -0.0360   -0.3396   -0.0842    0.1811    0.8438    0.0177    0.0797 
+    capital_ne~3 |   0.2536   -0.0376   -0.4832    0.4186   -0.0410   -0.2401    0.6349   -0.2458 
+    capital_no~1 |   0.2945    0.3456    0.0963   -0.3220    0.3474   -0.2241    0.3506    0.5955 
+    capital_no~2 |   0.0341    0.2861    0.3112    0.5561    0.6653    0.0555   -0.1442   -0.2074 
+    capital_no~3 |   0.3059    0.4255    0.0446   -0.2376   -0.1342   -0.1221   -0.0471   -0.2538 
+    capital_no~4 |   0.3060    0.4207    0.0073   -0.2042   -0.1841    0.0191   -0.1544   -0.4816 
+    capital_no~5 |   0.0484    0.3725    0.2396    0.5036   -0.5808    0.2336    0.0558    0.3863 
+    ----------------------------------------------------------------------------------------------
+
+    ----------------------------------------------------------
+        Variable |    Comp9    Comp10    Comp11 | Unexplained 
+    -------------+------------------------------+-------------
+    capital_tr~1 |  -0.1949   -0.4706    0.6387 |           0 
+    capital_tr~2 |  -0.1560   -0.2531   -0.7515 |           0 
+    capital_tr~3 |   0.3384    0.7299    0.1331 |           0 
+    capital_ne~1 |  -0.0074    0.0099    0.0515 |           0 
+    capital_ne~2 |   0.0769   -0.0036   -0.0223 |           0 
+    capital_ne~3 |  -0.0015    0.0228   -0.0478 |           0 
+    capital_no~1 |  -0.1405    0.1101   -0.0228 |           0 
+    capital_no~2 |   0.0307   -0.0051   -0.0217 |           0 
+    capital_no~3 |   0.6796   -0.3247   -0.0102 |           0 
+    capital_no~4 |  -0.5771    0.2483    0.0536 |           0 
+    capital_no~5 |  -0.0398   -0.0433    0.0121 |           0 
+    ----------------------------------------------------------
+
+. 
+. scree, yline(1)
+
+. 
+. fac capital_*, ipf fac(3)
+(obs=37,397)
+
+Factor analysis/correlation                      Number of obs    =     37,397
+    Method: iterated principal factors           Retained factors =          3
+    Rotation: (unrotated)                        Number of params =         30
+
+    --------------------------------------------------------------------------
+         Factor  |   Eigenvalue   Difference        Proportion   Cumulative
+    -------------+------------------------------------------------------------
+        Factor1  |      2.14902      0.86452            0.5194       0.5194
+        Factor2  |      1.28450      0.58049            0.3105       0.8299
+        Factor3  |      0.70402      0.46259            0.1702       1.0000
+        Factor4  |      0.24143      0.20335            0.0584       1.0584
+        Factor5  |      0.03808      0.02439            0.0092       1.0676
+        Factor6  |      0.01369      0.00844            0.0033       1.0709
+        Factor7  |      0.00526      0.01585            0.0013       1.0721
+        Factor8  |     -0.01059      0.01870           -0.0026       1.0696
+        Factor9  |     -0.02929      0.03841           -0.0071       1.0625
+       Factor10  |     -0.06771      0.12318           -0.0164       1.0461
+       Factor11  |     -0.19089            .           -0.0461       1.0000
+    --------------------------------------------------------------------------
+    LR test: independent vs. saturated:  chi2(55) = 7.5e+04 Prob>chi2 = 0.0000
+
+Factor loadings (pattern matrix) and unique variances
+
+    -----------------------------------------------------------
+        Variable |  Factor1   Factor2   Factor3 |   Uniqueness 
+    -------------+------------------------------+--------------
+    capital_tr~1 |   0.6310   -0.3883   -0.1546 |      0.4272  
+    capital_tr~2 |   0.6551   -0.3827   -0.1781 |      0.3927  
+    capital_tr~3 |   0.5737   -0.3366   -0.1780 |      0.5259  
+    capital_ne~1 |   0.3919    0.0887    0.5050 |      0.5836  
+    capital_ne~2 |   0.4555    0.0322    0.2865 |      0.7094  
+    capital_ne~3 |   0.3307    0.0157    0.4264 |      0.7086  
+    capital_no~1 |   0.3872    0.3894   -0.1304 |      0.6814  
+    capital_no~2 |   0.0339    0.2091   -0.1777 |      0.9235  
+    capital_no~3 |   0.4329    0.5458   -0.1251 |      0.4990  
+    capital_no~4 |   0.4259    0.5286   -0.0806 |      0.5327  
+    capital_no~5 |   0.0491    0.3036   -0.1646 |      0.8784  
+    -----------------------------------------------------------
+
+. 
+. rename capital_norms2 norms2
+
+. 
+. pca capital_*
+
+Principal components/correlation                 Number of obs    =     37,693
+                                                 Number of comp.  =         10
+                                                 Trace            =         10
+    Rotation: (unrotated = principal)            Rho              =     1.0000
+
+    --------------------------------------------------------------------------
+       Component |   Eigenvalue   Difference         Proportion   Cumulative
+    -------------+------------------------------------------------------------
+           Comp1 |      2.67936      .894268             0.2679       0.2679
+           Comp2 |      1.78509      .483589             0.1785       0.4464
+           Comp3 |       1.3015      .362407             0.1302       0.5766
+           Comp4 |      .939093      .258231             0.0939       0.6705
+           Comp5 |      .680862     .0535614             0.0681       0.7386
+           Comp6 |        .6273     .0442976             0.0627       0.8013
+           Comp7 |      .583003     .0681637             0.0583       0.8596
+           Comp8 |      .514839     .0332423             0.0515       0.9111
+           Comp9 |      .481597     .0742371             0.0482       0.9593
+          Comp10 |       .40736            .             0.0407       1.0000
+    --------------------------------------------------------------------------
+
+Principal components (eigenvectors) 
+
+    ----------------------------------------------------------------------------------------------
+        Variable |    Comp1     Comp2     Comp3     Comp4     Comp5     Comp6     Comp7     Comp8 
+    -------------+--------------------------------------------------------------------------------
+    capital_tr~1 |   0.3970   -0.3552   -0.2049    0.0457   -0.0432    0.0483    0.0006    0.1998 
+    capital_tr~2 |   0.4055   -0.3422   -0.2266    0.0678   -0.0535   -0.0837   -0.0028    0.1519 
+    capital_tr~3 |   0.3770   -0.3329   -0.2510    0.1227   -0.0351   -0.0449   -0.0297   -0.3379 
+    capital_ne~1 |   0.2862    0.0559    0.5480    0.0852   -0.3035   -0.5755    0.4255    0.0085 
+    capital_ne~2 |   0.3464    0.0052    0.3300   -0.2371    0.8287    0.0954    0.1131   -0.0761 
+    capital_ne~3 |   0.2548   -0.0094    0.5614    0.3107   -0.2563    0.5627   -0.3716   -0.0007 
+    capital_no~1 |   0.2905    0.3571   -0.1890   -0.3592   -0.2696    0.4861    0.5363    0.1194 
+    capital_no~3 |   0.3022    0.4510   -0.1574   -0.0923   -0.1010   -0.1450   -0.2854   -0.6734 
+    capital_no~4 |   0.3024    0.4487   -0.1149   -0.0537    0.0502   -0.2650   -0.4523    0.5906 
+    capital_no~5 |   0.0427    0.3324   -0.2137    0.8233    0.2532    0.0641    0.3059    0.0193 
+    ----------------------------------------------------------------------------------------------
+
+    ------------------------------------------------
+        Variable |    Comp9    Comp10 | Unexplained 
+    -------------+--------------------+-------------
+    capital_tr~1 |  -0.4743    0.6349 |           0 
+    capital_tr~2 |  -0.2483   -0.7536 |           0 
+    capital_tr~3 |   0.7287    0.1399 |           0 
+    capital_ne~1 |   0.0129    0.0528 |           0 
+    capital_ne~2 |  -0.0043   -0.0203 |           0 
+    capital_ne~3 |   0.0213   -0.0496 |           0 
+    capital_no~1 |   0.1081   -0.0297 |           0 
+    capital_no~3 |  -0.3253   -0.0074 |           0 
+    capital_no~4 |   0.2494    0.0532 |           0 
+    capital_no~5 |  -0.0455    0.0030 |           0 
+    ------------------------------------------------
+
+. 
+. scree, yline(1)
+
+. 
+. fac capital_*, ipf fac(3)
+(obs=37,693)
+
+Factor analysis/correlation                      Number of obs    =     37,693
+    Method: iterated principal factors           Retained factors =          3
+    Rotation: (unrotated)                        Number of params =         27
+
+    --------------------------------------------------------------------------
+         Factor  |   Eigenvalue   Difference        Proportion   Cumulative
+    -------------+------------------------------------------------------------
+        Factor1  |      2.15359      0.90147            0.5265       0.5265
+        Factor2  |      1.25212      0.56740            0.3061       0.8326
+        Factor3  |      0.68471      0.56333            0.1674       1.0000
+        Factor4  |      0.12138      0.09376            0.0297       1.0297
+        Factor5  |      0.02762      0.00828            0.0068       1.0364
+        Factor6  |      0.01934      0.02122            0.0047       1.0412
+        Factor7  |     -0.00188      0.01922           -0.0005       1.0407
+        Factor8  |     -0.02110      0.01446           -0.0052       1.0355
+        Factor9  |     -0.03556      0.07425           -0.0087       1.0268
+       Factor10  |     -0.10982            .           -0.0268       1.0000
+    --------------------------------------------------------------------------
+    LR test: independent vs. saturated:  chi2(45) = 7.2e+04 Prob>chi2 = 0.0000
+
+Factor loadings (pattern matrix) and unique variances
+
+    -----------------------------------------------------------
+        Variable |  Factor1   Factor2   Factor3 |   Uniqueness 
+    -------------+------------------------------+--------------
+    capital_tr~1 |   0.6305   -0.3978   -0.1307 |      0.4271  
+    capital_tr~2 |   0.6541   -0.3927   -0.1592 |      0.3925  
+    capital_tr~3 |   0.5732   -0.3479   -0.1559 |      0.5261  
+    capital_ne~1 |   0.3956    0.1134    0.5054 |      0.5752  
+    capital_ne~2 |   0.4544    0.0543    0.2558 |      0.7251  
+    capital_ne~3 |   0.3373    0.0318    0.4598 |      0.6738  
+    capital_no~1 |   0.3837    0.3779   -0.1552 |      0.6859  
+    capital_no~3 |   0.4373    0.5553   -0.1765 |      0.4693  
+    capital_no~4 |   0.4270    0.5323   -0.1242 |      0.5189  
+    capital_no~5 |   0.0453    0.2596   -0.1227 |      0.9155  
+    -----------------------------------------------------------
+
+. 
+. quietly: fac capital_*, ipf fac(3)
+
+. rot, oblique quartimin
+
+Factor analysis/correlation                      Number of obs    =     37,693
+    Method: iterated principal factors           Retained factors =          3
+    Rotation: oblique quartimin (Kaiser off)     Number of params =         27
+
+    --------------------------------------------------------------------------
+         Factor  |     Variance   Proportion    Rotated factors are correlated
+    -------------+------------------------------------------------------------
+        Factor1  |      1.86008       0.4547
+        Factor2  |      1.56379       0.3823
+        Factor3  |      1.27146       0.3108
+    --------------------------------------------------------------------------
+    LR test: independent vs. saturated:  chi2(45) = 7.2e+04 Prob>chi2 = 0.0000
+
+Rotated factor loadings (pattern matrix) and unique variances
+
+    -----------------------------------------------------------
+        Variable |  Factor1   Factor2   Factor3 |   Uniqueness 
+    -------------+------------------------------+--------------
+    capital_tr~1 |   0.7541   -0.0198    0.0193 |      0.4271  
+    capital_tr~2 |   0.7790    0.0076   -0.0032 |      0.3925  
+    capital_tr~3 |   0.6924    0.0111   -0.0203 |      0.5261  
+    capital_ne~1 |  -0.0327    0.0198    0.6548 |      0.5752  
+    capital_ne~2 |   0.1568    0.1110    0.4065 |      0.7251  
+    capital_ne~3 |   0.0038   -0.0519    0.5836 |      0.6738  
+    capital_no~1 |   0.0682    0.5507   -0.0196 |      0.6859  
+    capital_no~3 |  -0.0077    0.7335   -0.0124 |      0.4693  
+    capital_no~4 |  -0.0218    0.6851    0.0375 |      0.5189  
+    capital_no~5 |  -0.0932    0.2969   -0.0950 |      0.9155  
+    -----------------------------------------------------------
+
+Factor rotation matrix
+
+    -----------------------------------------
+                 | Factor1  Factor2  Factor3 
+    -------------+---------------------------
+         Factor1 |  0.8363   0.6156   0.6272 
+         Factor2 | -0.5109   0.7538   0.1249 
+         Factor3 | -0.1990  -0.2297   0.7688 
+    -----------------------------------------
+
+. 
+. estat common
+
+Correlation matrix of the quartimin rotated common factors
+
+    --------------------------------------------
+         Factors |  Factor1   Factor2   Factor3 
+    -------------+------------------------------
+         Factor1 |        1                     
+         Factor2 |    .1754         1           
+         Factor3 |    .3077     .3036         1 
+    --------------------------------------------
+
+. 
+. rot, oblique quartimin normalize blank(0.2)
+
+Factor analysis/correlation                      Number of obs    =     37,693
+    Method: iterated principal factors           Retained factors =          3
+    Rotation: oblique quartimin (Kaiser on)      Number of params =         27
+
+    --------------------------------------------------------------------------
+         Factor  |     Variance   Proportion    Rotated factors are correlated
+    -------------+------------------------------------------------------------
+        Factor1  |      1.86935       0.4570
+        Factor2  |      1.44255       0.3527
+        Factor3  |      1.32578       0.3241
+    --------------------------------------------------------------------------
+    LR test: independent vs. saturated:  chi2(45) = 7.2e+04 Prob>chi2 = 0.0000
+
+Rotated factor loadings (pattern matrix) and unique variances
+
+    -----------------------------------------------------------
+        Variable |  Factor1   Factor2   Factor3 |   Uniqueness 
+    -------------+------------------------------+--------------
+    capital_tr~1 |   0.7549                     |      0.4271  
+    capital_tr~2 |   0.7827                     |      0.3925  
+    capital_tr~3 |   0.6968                     |      0.5261  
+    capital_ne~1 |                       0.6681 |      0.5752  
+    capital_ne~2 |                       0.4225 |      0.7251  
+    capital_ne~3 |                       0.5883 |      0.6738  
+    capital_no~1 |             0.5325           |      0.6859  
+    capital_no~3 |             0.7096           |      0.4693  
+    capital_no~4 |             0.6628           |      0.5189  
+    capital_no~5 |             0.2875           |      0.9155  
+    -----------------------------------------------------------
+    (blanks represent abs(loading)<.2)
+
+Factor rotation matrix
+
+    -----------------------------------------
+                 | Factor1  Factor2  Factor3 
+    -------------+---------------------------
+         Factor1 |  0.8413   0.5178   0.6578 
+         Factor2 | -0.5056   0.8009   0.0977 
+         Factor3 | -0.1914  -0.3007   0.7468 
+    -----------------------------------------
+
+. 
+. rename capital_norms5 norms5
+
+. 
+. pca capital_*
+
+Principal components/correlation                 Number of obs    =     37,798
+                                                 Number of comp.  =          9
+                                                 Trace            =          9
+    Rotation: (unrotated = principal)            Rho              =     1.0000
+
+    --------------------------------------------------------------------------
+       Component |   Eigenvalue   Difference         Proportion   Cumulative
+    -------------+------------------------------------------------------------
+           Comp1 |      2.67637      .984736             0.2974       0.2974
+           Comp2 |      1.69163       .41351             0.1880       0.4853
+           Comp3 |      1.27812      .569579             0.1420       0.6273
+           Comp4 |      .708544     .0790556             0.0787       0.7061
+           Comp5 |      .629488     .0189049             0.0699       0.7760
+           Comp6 |      .610583     .0951402             0.0678       0.8439
+           Comp7 |      .515443     .0331309             0.0573       0.9011
+           Comp8 |      .482312     .0748079             0.0536       0.9547
+           Comp9 |      .407504            .             0.0453       1.0000
+    --------------------------------------------------------------------------
+
+Principal components (eigenvectors) 
+
+    ----------------------------------------------------------------------------------------------
+        Variable |    Comp1     Comp2     Comp3     Comp4     Comp5     Comp6     Comp7     Comp8 
+    -------------+--------------------------------------------------------------------------------
+    capital_tr~1 |   0.4012   -0.3766   -0.1615    0.0360    0.0562   -0.0096   -0.2025   -0.4755 
+    capital_tr~2 |   0.4095   -0.3675   -0.1817    0.0722   -0.0726   -0.0344   -0.1557   -0.2414 
+    capital_tr~3 |   0.3800   -0.3678   -0.1993    0.1030   -0.0646    0.0532    0.3448    0.7234 
+    capital_ne~1 |   0.2876    0.1099    0.5448    0.2273   -0.3918   -0.6323   -0.0029    0.0250 
+    capital_ne~2 |   0.3488    0.0613    0.2995   -0.8741   -0.0056    0.1149    0.0830    0.0108 
+    capital_ne~3 |   0.2555    0.0217    0.5961    0.3678    0.4663    0.4732   -0.0049    0.0075 
+    capital_no~1 |   0.2869    0.3873   -0.2793   -0.0275    0.6676   -0.4634   -0.1098    0.1250 
+    capital_no~3 |   0.2957    0.4607   -0.2245    0.1565   -0.1864    0.1753    0.6622   -0.3483 
+    capital_no~4 |   0.2960    0.4576   -0.1759    0.0812   -0.3687    0.3369   -0.5986    0.2334 
+    ----------------------------------------------------------------------------------------------
+
+    --------------------------------------
+        Variable |    Comp9 | Unexplained 
+    -------------+----------+-------------
+    capital_tr~1 |   0.6320 |           0 
+    capital_tr~2 |  -0.7550 |           0 
+    capital_tr~3 |   0.1442 |           0 
+    capital_ne~1 |   0.0522 |           0 
+    capital_ne~2 |  -0.0217 |           0 
+    capital_ne~3 |  -0.0481 |           0 
+    capital_no~1 |  -0.0287 |           0 
+    capital_no~3 |  -0.0102 |           0 
+    capital_no~4 |   0.0569 |           0 
+    --------------------------------------
+
+. 
+. scree, yline(1)
+
+. 
+. fac capital_*, ipf fac(3)
+(obs=37,798)
+
+Factor analysis/correlation                      Number of obs    =     37,798
+    Method: iterated principal factors           Retained factors =          3
+    Rotation: (unrotated)                        Number of params =         24
+
+    --------------------------------------------------------------------------
+         Factor  |   Eigenvalue   Difference        Proportion   Cumulative
+    -------------+------------------------------------------------------------
+        Factor1  |      2.15025      0.96812            0.5371       0.5371
+        Factor2  |      1.18213      0.51108            0.2953       0.8324
+        Factor3  |      0.67105      0.63718            0.1676       1.0000
+        Factor4  |      0.03387      0.01568            0.0085       1.0085
+        Factor5  |      0.01819      0.01841            0.0045       1.0130
+        Factor6  |     -0.00022      0.00313           -0.0001       1.0130
+        Factor7  |     -0.00335      0.01488           -0.0008       1.0121
+        Factor8  |     -0.01823      0.01204           -0.0046       1.0076
+        Factor9  |     -0.03027            .           -0.0076       1.0000
+    --------------------------------------------------------------------------
+    LR test: independent vs. saturated:  chi2(36) = 6.9e+04 Prob>chi2 = 0.0000
+
+Factor loadings (pattern matrix) and unique variances
+
+    -----------------------------------------------------------
+        Variable |  Factor1   Factor2   Factor3 |   Uniqueness 
+    -------------+------------------------------+--------------
+    capital_tr~1 |   0.6349   -0.3929   -0.1093 |      0.4306  
+    capital_tr~2 |   0.6597   -0.3938   -0.1367 |      0.3910  
+    capital_tr~3 |   0.5777   -0.3553   -0.1322 |      0.5225  
+    capital_ne~1 |   0.3937    0.1509    0.4805 |      0.5913  
+    capital_ne~2 |   0.4551    0.0924    0.2311 |      0.7309  
+    capital_ne~3 |   0.3423    0.0568    0.4850 |      0.6444  
+    capital_no~1 |   0.3836    0.3944   -0.1991 |      0.6577  
+    capital_no~3 |   0.4256    0.5423   -0.2060 |      0.4823  
+    capital_no~4 |   0.4131    0.5120   -0.1463 |      0.5458  
+    -----------------------------------------------------------
+
+. 
+. quietly: fac capital_*, ipf fac(3)
+
+. rot, oblique quartimin
+
+Factor analysis/correlation                      Number of obs    =     37,798
+    Method: iterated principal factors           Retained factors =          3
+    Rotation: oblique quartimin (Kaiser off)     Number of params =         24
+
+    --------------------------------------------------------------------------
+         Factor  |     Variance   Proportion    Rotated factors are correlated
+    -------------+------------------------------------------------------------
+        Factor1  |      1.85485       0.4633
+        Factor2  |      1.50828       0.3767
+        Factor3  |      1.25554       0.3136
+    --------------------------------------------------------------------------
+    LR test: independent vs. saturated:  chi2(36) = 6.9e+04 Prob>chi2 = 0.0000
+
+Rotated factor loadings (pattern matrix) and unique variances
+
+    -----------------------------------------------------------
+        Variable |  Factor1   Factor2   Factor3 |   Uniqueness 
+    -------------+------------------------------+--------------
+    capital_tr~1 |   0.7518   -0.0161    0.0181 |      0.4306  
+    capital_tr~2 |   0.7799    0.0071   -0.0030 |      0.3910  
+    capital_tr~3 |   0.6952    0.0040   -0.0171 |      0.5225  
+    capital_ne~1 |  -0.0259    0.0353    0.6353 |      0.5913  
+    capital_ne~2 |   0.1539    0.1395    0.3867 |      0.7309  
+    capital_ne~3 |   0.0040   -0.0656    0.6115 |      0.6444  
+    capital_no~1 |   0.0585    0.5825   -0.0376 |      0.6577  
+    capital_no~3 |  -0.0150    0.7254   -0.0114 |      0.4823  
+    capital_no~4 |  -0.0252    0.6647    0.0424 |      0.5458  
+    -----------------------------------------------------------
+
+Factor rotation matrix
+
+    -----------------------------------------
+                 | Factor1  Factor2  Factor3 
+    -------------+---------------------------
+         Factor1 |  0.8427   0.6139   0.6201 
+         Factor2 | -0.5110   0.7398   0.1755 
+         Factor3 | -0.1698  -0.2754   0.7646 
+    -----------------------------------------
+
+. 
+. estat common
+
+Correlation matrix of the quartimin rotated common factors
+
+    --------------------------------------------
+         Factors |  Factor1   Factor2   Factor3 
+    -------------+------------------------------
+         Factor1 |        1                     
+         Factor2 |    .1861         1           
+         Factor3 |     .303        .3         1 
+    --------------------------------------------
+
+. 
+. rot, oblique quartimin normalize blank(0.2)
+
+Factor analysis/correlation                      Number of obs    =     37,798
+    Method: iterated principal factors           Retained factors =          3
+    Rotation: oblique quartimin (Kaiser on)      Number of params =         24
+
+    --------------------------------------------------------------------------
+         Factor  |     Variance   Proportion    Rotated factors are correlated
+    -------------+------------------------------------------------------------
+        Factor1  |      1.85870       0.4643
+        Factor2  |      1.52213       0.3802
+        Factor3  |      1.29356       0.3231
+    --------------------------------------------------------------------------
+    LR test: independent vs. saturated:  chi2(36) = 6.9e+04 Prob>chi2 = 0.0000
+
+Rotated factor loadings (pattern matrix) and unique variances
+
+    -----------------------------------------------------------
+        Variable |  Factor1   Factor2   Factor3 |   Uniqueness 
+    -------------+------------------------------+--------------
+    capital_tr~1 |   0.7525                     |      0.4306  
+    capital_tr~2 |   0.7806                     |      0.3910  
+    capital_tr~3 |   0.6962                     |      0.5225  
+    capital_ne~1 |                       0.6427 |      0.5913  
+    capital_ne~2 |                       0.3924 |      0.7309  
+    capital_ne~3 |                       0.6180 |      0.6444  
+    capital_no~1 |             0.5839           |      0.6577  
+    capital_no~3 |             0.7276           |      0.4823  
+    capital_no~4 |             0.6661           |      0.5458  
+    -----------------------------------------------------------
+    (blanks represent abs(loading)<.2)
+
+Factor rotation matrix
+
+    -----------------------------------------
+                 | Factor1  Factor2  Factor3 
+    -------------+---------------------------
+         Factor1 |  0.8454   0.6274   0.6411 
+         Factor2 | -0.5051   0.7251   0.1692 
+         Factor3 | -0.1737  -0.2837   0.7486 
+    -----------------------------------------
+
+. 
+. rename capital_network2 network2
+
+. 
+. pca capital_*
+
+Principal components/correlation                 Number of obs    =     38,109
+                                                 Number of comp.  =          8
+                                                 Trace            =          8
+    Rotation: (unrotated = principal)            Rho              =     1.0000
+
+    --------------------------------------------------------------------------
+       Component |   Eigenvalue   Difference         Proportion   Cumulative
+    -------------+------------------------------------------------------------
+           Comp1 |      2.45196        .7652             0.3065       0.3065
+           Comp2 |      1.68676      .467875             0.2108       0.5173
+           Comp3 |      1.21888      .590937             0.1524       0.6697
+           Comp4 |      .627947     .0168759             0.0785       0.7482
+           Comp5 |      .611071     .0949944             0.0764       0.8246
+           Comp6 |      .516077     .0346009             0.0645       0.8891
+           Comp7 |      .481476     .0756503             0.0602       0.9493
+           Comp8 |      .405826            .             0.0507       1.0000
+    --------------------------------------------------------------------------
+
+Principal components (eigenvectors) 
+
+    ----------------------------------------------------------------------------------------------
+        Variable |    Comp1     Comp2     Comp3     Comp4     Comp5     Comp6     Comp7     Comp8 
+    -------------+--------------------------------------------------------------------------------
+    capital_tr~1 |   0.4421   -0.3539   -0.1191    0.0548   -0.0089   -0.2003   -0.4762    0.6286 
+    capital_tr~2 |   0.4534   -0.3432   -0.1347   -0.0726   -0.0262   -0.1424   -0.2393   -0.7583 
+    capital_tr~3 |   0.4243   -0.3440   -0.1534   -0.0644    0.0702    0.3476    0.7259    0.1461 
+    capital_ne~1 |   0.2706    0.1089    0.6276   -0.3875   -0.6060    0.0297    0.0270    0.0450 
+    capital_ne~3 |   0.2388    0.0174    0.6795    0.4590    0.5170    0.0094    0.0090   -0.0523 
+    capital_no~1 |   0.3064    0.4093   -0.2274    0.6721   -0.4566   -0.1005    0.1249   -0.0307 
+    capital_no~3 |   0.3149    0.4813   -0.1558   -0.1877    0.2027    0.6707   -0.3446   -0.0081 
+    capital_no~4 |   0.3092    0.4768   -0.1117   -0.3738    0.3320   -0.5982    0.2323    0.0523 
+    ----------------------------------------------------------------------------------------------
+
+    ---------------------------
+        Variable | Unexplained 
+    -------------+-------------
+    capital_tr~1 |           0 
+    capital_tr~2 |           0 
+    capital_tr~3 |           0 
+    capital_ne~1 |           0 
+    capital_ne~3 |           0 
+    capital_no~1 |           0 
+    capital_no~3 |           0 
+    capital_no~4 |           0 
+    ---------------------------
+
+. 
+. scree, yline(1)
+
+. 
+. fac capital_*, ipf fac(3)
+(obs=38,109)
+
+Factor analysis/correlation                      Number of obs    =     38,109
+    Method: iterated principal factors           Retained factors =          3
+    Rotation: (unrotated)                        Number of params =         21
+
+    --------------------------------------------------------------------------
+         Factor  |   Eigenvalue   Difference        Proportion   Cumulative
+    -------------+------------------------------------------------------------
+        Factor1  |      1.95958      0.78556            0.5231       0.5231
+        Factor2  |      1.17402      0.56159            0.3134       0.8365
+        Factor3  |      0.61243      0.59120            0.1635       1.0000
+        Factor4  |      0.02123      0.00522            0.0057       1.0057
+        Factor5  |      0.01601      0.01868            0.0043       1.0099
+        Factor6  |     -0.00268      0.01312           -0.0007       1.0092
+        Factor7  |     -0.01579      0.00298           -0.0042       1.0050
+        Factor8  |     -0.01877            .           -0.0050       1.0000
+    --------------------------------------------------------------------------
+    LR test: independent vs. saturated:  chi2(28) = 6.2e+04 Prob>chi2 = 0.0000
+
+Factor loadings (pattern matrix) and unique variances
+
+    -----------------------------------------------------------
+        Variable |  Factor1   Factor2   Factor3 |   Uniqueness 
+    -------------+------------------------------+--------------
+    capital_tr~1 |   0.6589   -0.3568   -0.0769 |      0.4326  
+    capital_tr~2 |   0.6912   -0.3563   -0.0989 |      0.3855  
+    capital_tr~3 |   0.6051   -0.3210   -0.0987 |      0.5211  
+    capital_ne~1 |   0.3450    0.1469    0.5157 |      0.5934  
+    capital_ne~3 |   0.2994    0.0500    0.5178 |      0.6398  
+    capital_no~1 |   0.3746    0.4189   -0.1554 |      0.6601  
+    capital_no~3 |   0.4194    0.5755   -0.1434 |      0.4724  
+    capital_no~4 |   0.3960    0.5348   -0.0906 |      0.5491  
+    -----------------------------------------------------------
+
+. 
+. quietly: fac capital_*, ipf fac(3)
+
+. rot, oblique quartimin
+
+Factor analysis/correlation                      Number of obs    =     38,109
+    Method: iterated principal factors           Retained factors =          3
+    Rotation: oblique quartimin (Kaiser off)     Number of params =         21
+
+    --------------------------------------------------------------------------
+         Factor  |     Variance   Proportion    Rotated factors are correlated
+    -------------+------------------------------------------------------------
+        Factor1  |      1.76930       0.4723
+        Factor2  |      1.42871       0.3814
+        Factor3  |      0.98527       0.2630
+    --------------------------------------------------------------------------
+    LR test: independent vs. saturated:  chi2(28) = 6.2e+04 Prob>chi2 = 0.0000
+
+Rotated factor loadings (pattern matrix) and unique variances
+
+    -----------------------------------------------------------
+        Variable |  Factor1   Factor2   Factor3 |   Uniqueness 
+    -------------+------------------------------+--------------
+    capital_tr~1 |   0.7511   -0.0131    0.0159 |      0.4326  
+    capital_tr~2 |   0.7823    0.0094   -0.0005 |      0.3855  
+    capital_tr~3 |   0.6948    0.0054   -0.0140 |      0.5211  
+    capital_ne~1 |  -0.0086    0.0524    0.6238 |      0.5934  
+    capital_ne~3 |   0.0194   -0.0512    0.6066 |      0.6398  
+    capital_no~1 |   0.0605    0.5803   -0.0430 |      0.6601  
+    capital_no~3 |  -0.0116    0.7297   -0.0051 |      0.4724  
+    capital_no~4 |  -0.0203    0.6628    0.0411 |      0.5491  
+    -----------------------------------------------------------
+
+Factor rotation matrix
+
+    -----------------------------------------
+                 | Factor1  Factor2  Factor3 
+    -------------+---------------------------
+         Factor1 |  0.8767   0.5922   0.5154 
+         Factor2 | -0.4648   0.7824   0.1633 
+         Factor3 | -0.1235  -0.1926   0.8412 
+    -----------------------------------------
+
+. 
+. estat common
+
+Correlation matrix of the quartimin rotated common factors
+
+    --------------------------------------------
+         Factors |  Factor1   Factor2   Factor3 
+    -------------+------------------------------
+         Factor1 |        1                     
+         Factor2 |    .1793         1           
+         Factor3 |     .272      .271         1 
+    --------------------------------------------
+
+. 
+. rot, oblique quartimin normalize blank(0.2)
+
+Factor analysis/correlation                      Number of obs    =     38,109
+    Method: iterated principal factors           Retained factors =          3
+    Rotation: oblique quartimin (Kaiser on)      Number of params =         21
+
+    --------------------------------------------------------------------------
+         Factor  |     Variance   Proportion    Rotated factors are correlated
+    -------------+------------------------------------------------------------
+        Factor1  |      1.76653       0.4716
+        Factor2  |      1.43436       0.3829
+        Factor3  |      0.98061       0.2618
+    --------------------------------------------------------------------------
+    LR test: independent vs. saturated:  chi2(28) = 6.2e+04 Prob>chi2 = 0.0000
+
+Rotated factor loadings (pattern matrix) and unique variances
+
+    -----------------------------------------------------------
+        Variable |  Factor1   Factor2   Factor3 |   Uniqueness 
+    -------------+------------------------------+--------------
+    capital_tr~1 |   0.7502                     |      0.4326  
+    capital_tr~2 |   0.7811                     |      0.3855  
+    capital_tr~3 |   0.6938                     |      0.5211  
+    capital_ne~1 |                       0.6233 |      0.5934  
+    capital_ne~3 |                       0.6052 |      0.6398  
+    capital_no~1 |             0.5801           |      0.6601  
+    capital_no~3 |             0.7298           |      0.4724  
+    capital_no~4 |             0.6634           |      0.5491  
+    -----------------------------------------------------------
+    (blanks represent abs(loading)<.2)
+
+Factor rotation matrix
+
+    -----------------------------------------
+                 | Factor1  Factor2  Factor3 
+    -------------+---------------------------
+         Factor1 |  0.8751   0.6007   0.5131 
+         Factor2 | -0.4670   0.7732   0.1553 
+         Factor3 | -0.1271  -0.2030   0.8442 
+    -----------------------------------------
+
+. 
+. dis e(evsum)/8
+.46825439
+
+. 
+. estat res
+
+Raw residuals of correlations (observed-fitted)
+
+    --------------------------------------------------------------------------------------
+        Variable | capi~t1  capit~2  capi~t3  capi~k1  capi~k3  capi~s1  capi~s3  capit~4 
+    -------------+------------------------------------------------------------------------
+    capital_tr~1 |  0.0000                                                                
+    capital_tr~2 | -0.0004   0.0000                                                       
+    capital_tr~3 | -0.0009   0.0014   0.0000                                              
+    capital_ne~1 | -0.0058   0.0079  -0.0026   0.0000                                     
+    capital_ne~3 |  0.0068  -0.0090   0.0026  -0.0000   0.0000                            
+    capital_no~1 |  0.0111  -0.0048  -0.0067  -0.0011   0.0006   0.0000                   
+    capital_no~3 | -0.0053  -0.0037   0.0099  -0.0008   0.0013   0.0004   0.0000          
+    capital_no~4 | -0.0029   0.0069  -0.0046   0.0017  -0.0017  -0.0000  -0.0003   0.0000 
+    --------------------------------------------------------------------------------------
+
+. 
+. // Index für soziales Vertrauen
+. 
+. cap drop index_trust
+
+. gen index_trust         = capital_trust1 * capital_trust2 * capital_trust3
+(464 missing values generated)
+
+. fre index_trust
+
+index_trust
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |       3435       8.51       8.61       8.61
+        1     |        188       0.47       0.47       9.08
+        2     |        139       0.34       0.35       9.43
+        3     |         75       0.19       0.19       9.62
+        4     |        206       0.51       0.52      10.13
+        5     |         45       0.11       0.11      10.24
+        6     |        186       0.46       0.47      10.71
+        7     |         10       0.02       0.03      10.74
+        8     |        374       0.93       0.94      11.67
+        9     |        118       0.29       0.30      11.97
+        10    |        116       0.29       0.29      12.26
+        12    |        429       1.06       1.08      13.33
+        14    |         23       0.06       0.06      13.39
+        15    |        123       0.30       0.31      13.70
+        16    |        218       0.54       0.55      14.25
+        18    |        378       0.94       0.95      15.19
+        20    |        245       0.61       0.61      15.81
+        21    |         23       0.06       0.06      15.87
+        24    |        419       1.04       1.05      16.92
+        25    |        124       0.31       0.31      17.23
+        :     |          :          :          :          :
+        486   |         53       0.13       0.13      92.45
+        490   |         20       0.05       0.05      92.50
+        500   |         68       0.17       0.17      92.67
+        504   |        421       1.04       1.06      93.73
+        512   |        702       1.74       1.76      95.49
+        540   |         21       0.05       0.05      95.54
+        560   |         93       0.23       0.23      95.77
+        567   |        130       0.32       0.33      96.10
+        576   |        427       1.06       1.07      97.17
+        600   |         29       0.07       0.07      97.24
+        630   |         47       0.12       0.12      97.36
+        640   |         83       0.21       0.21      97.57
+        648   |        280       0.69       0.70      98.27
+        700   |         43       0.11       0.11      98.38
+        720   |         93       0.23       0.23      98.61
+        729   |        177       0.44       0.44      99.06
+        800   |         81       0.20       0.20      99.26
+        810   |         67       0.17       0.17      99.43
+        900   |         60       0.15       0.15      99.58
+        1000  |        169       0.42       0.42     100.00
+        Total |      39904      98.85     100.00           
+Missing .     |        464       1.15                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+. 
+. // Index für soziale Netzwerke
+. 
+. cap drop index_network
+
+. gen index_network       = capital_network1 + capital_network3
+(786 missing values generated)
+
+. fre index_network
+
+index_network
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   2     |        505       1.25       1.28       1.28
+        3     |       1380       3.42       3.49       4.76
+        4     |       2137       5.29       5.40      10.16
+        5     |       2871       7.11       7.25      17.41
+        6     |       4514      11.18      11.40      28.82
+        7     |       6809      16.87      17.20      46.02
+        8     |       6841      16.95      17.28      63.30
+        9     |       7456      18.47      18.84      82.14
+        10    |       4963      12.29      12.54      94.68
+        11    |       1586       3.93       4.01      98.69
+        12    |        520       1.29       1.31     100.00
+        Total |      39582      98.05     100.00           
+Missing .     |        786       1.95                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+. 
+. // Index für soziale Normen
+. 
+. cap drop index_norms
+
+. gen index_norms = capital_norms1 + capital_norms3 + capital_norms4
+(1,347 missing values generated)
+
+. fre index_norms
+
+index_norms
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   3     |         15       0.04       0.04       0.04
+        4     |         22       0.05       0.06       0.09
+        5     |         32       0.08       0.08       0.18
+        6     |        114       0.28       0.29       0.47
+        7     |        161       0.40       0.41       0.88
+        8     |        373       0.92       0.96       1.84
+        9     |        770       1.91       1.97       3.81
+        10    |       1160       2.87       2.97       6.78
+        11    |       1877       4.65       4.81      11.59
+        12    |       3270       8.10       8.38      19.97
+        13    |       4243      10.51      10.87      30.85
+        14    |       5555      13.76      14.24      45.08
+        15    |       8164      20.22      20.92      66.01
+        16    |       5657      14.01      14.50      80.50
+        17    |       4210      10.43      10.79      91.29
+        18    |       3398       8.42       8.71     100.00
+        Total |      39021      96.66     100.00           
+Missing .     |       1347       3.34                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+. 
+. 
+. // --> Gesamt-Index für Sozialkapital
+. 
+. cap drop index_capital
+
+. gen index_capital = 0.03*index_trust + 2*index_network + index_norms
+(2,259 missing values generated)
+
+. 
+. fre index_capital
+
+index_capital
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   7     |          2       0.00       0.01       0.01
+        7.36  |          1       0.00       0.00       0.01
+        8.72  |          1       0.00       0.00       0.01
+        9     |          2       0.00       0.01       0.02
+        9.81  |          1       0.00       0.00       0.02
+        10    |          2       0.00       0.01       0.02
+        10.72 |          1       0.00       0.00       0.03
+        11    |          5       0.01       0.01       0.04
+        11.03 |          1       0.00       0.00       0.04
+        11.26 |          1       0.00       0.00       0.04
+        11.35 |          1       0.00       0.00       0.05
+        11.54 |          1       0.00       0.00       0.05
+        12    |          5       0.01       0.01       0.06
+        12.03 |          1       0.00       0.00       0.07
+        12.18 |          1       0.00       0.00       0.07
+        12.24 |          1       0.00       0.00       0.07
+        12.3  |          1       0.00       0.00       0.07
+        12.44 |          1       0.00       0.00       0.08
+        12.5  |          1       0.00       0.00       0.08
+        12.54 |          2       0.00       0.01       0.08
+        :     |          :          :          :          :
+        61    |         19       0.05       0.05      99.66
+        61.2  |          1       0.00       0.00      99.66
+        61.3  |          4       0.01       0.01      99.67
+        61.87 |          4       0.01       0.01      99.68
+        62    |         26       0.06       0.07      99.75
+        62.3  |          1       0.00       0.00      99.75
+        62.87 |          1       0.00       0.00      99.75
+        63    |         17       0.04       0.04      99.80
+        63.3  |          2       0.00       0.01      99.80
+        63.87 |          1       0.00       0.00      99.81
+        64    |         24       0.06       0.06      99.87
+        64.3  |          4       0.01       0.01      99.88
+        65    |         13       0.03       0.03      99.91
+        65.3  |          1       0.00       0.00      99.92
+        66    |         13       0.03       0.03      99.95
+        67    |          8       0.02       0.02      99.97
+        68    |          6       0.01       0.02      99.99
+        69    |          3       0.01       0.01      99.99
+        70    |          1       0.00       0.00     100.00
+        71    |          1       0.00       0.00     100.00
+        Total |      38109      94.40     100.00           
+Missing .     |       2259       5.60                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+. lab var index_capital "Social capital"
+
+. 
+. 
+. * Merkmale des Wohlfahrtsstaats
+. 
+. // Regimetyp
+. 
+. fre cntry // Country
+
+cntry -- Country
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   AT    |       2499       6.19       6.19       6.19
+        BE    |       1767       4.38       4.38      10.57
+        BG    |       2198       5.44       5.44      16.01
+        CZ    |       2398       5.94       5.94      21.95
+        DE    |       2358       5.84       5.84      27.79
+        DK    |       1572       3.89       3.89      31.69
+        EE    |       1904       4.72       4.72      36.41
+        ES    |       1668       4.13       4.13      40.54
+        FI    |       1755       4.35       4.35      44.88
+        FR    |       2010       4.98       4.98      49.86
+        GB    |       2204       5.46       5.46      55.32
+        HR    |       1810       4.48       4.48      59.81
+        HU    |       1661       4.11       4.11      63.92
+        IE    |       2216       5.49       5.49      69.41
+        IT    |       2745       6.80       6.80      76.21
+        LT    |       1835       4.55       4.55      80.76
+        LV    |        918       2.27       2.27      83.03
+        NL    |       1673       4.14       4.14      87.18
+        PL    |       1500       3.72       3.72      90.89
+        PT    |       1055       2.61       2.61      93.50
+        SE    |       1539       3.81       3.81      97.32
+        SK    |       1083       2.68       2.68     100.00
+        Total |      40368     100.00     100.00           
+-----------------------------------------------------------
+
+. cap drop welfare_type
+
+. gen welfare_type =.
+(40,368 missing values generated)
+
+. replace welfare_type = 1 if cntry == "SE" | cntry == "FI" | cntry == "DK" 
+(4,866 real changes made)
+
+. replace welfare_type = 2 if cntry == "GB" | cntry == "IE"
+(4,420 real changes made)
+
+. replace welfare_type = 3 if cntry == "DE" | cntry == "FR" | cntry == "AT" | cntry == "BE" | cntry ==
+>  "NL"
+(10,307 real changes made)
+
+. replace welfare_type = 4 if cntry == "PL" | cntry == "CZ" | cntry == "HR" | cntry == "BG" | cntry ==
+>  "SK" | cntry == "HU" | cntry == "EE" | cntry == "LT" | cntry == "LV"
+(15,307 real changes made)
+
+. replace welfare_type = 5 if cntry == "ES" | cntry == "IT" | cntry == "PT" 
+(5,468 real changes made)
+
+. 
+. label def welfare_type 1 "Social Democratic" 2 "Liberal" 3 "Conservative-Corporatistic" 4 "Post-Comm
+> unist" 5 "Latin-Rim"
+
+. 
+. label values welfare_type welfare_type
+
+. 
+. lab var welfare_type "Regime type"
+
+. 
+. fre welfare_type
+
+welfare_type -- Regime type
+----------------------------------------------------------------------------------
+                                     |      Freq.    Percent      Valid       Cum.
+-------------------------------------+--------------------------------------------
+Valid   1 Social Democratic          |       4866      12.05      12.05      12.05
+        2 Liberal                    |       4420      10.95      10.95      23.00
+        3 Conservative-Corporatistic |      10307      25.53      25.53      48.54
+        4 Post-Communist             |      15307      37.92      37.92      86.45
+        5 Latin-Rim                  |       5468      13.55      13.55     100.00
+        Total                        |      40368     100.00     100.00           
+----------------------------------------------------------------------------------
+
+. 
+. // Wohlfahrtsausgaben
+. 
+. lab var welfare_exp "Social expenditure"        // Average total expenditure for social protection i
+> n Euro per inhabitant
+
+. 
+. fre welfare_exp
+
+welfare_exp -- Social expenditure
+--------------------------------------------------------------
+                 |      Freq.    Percent      Valid       Cum.
+-----------------+--------------------------------------------
+Valid   1403.55  |       2198       5.44       5.44       5.44
+        2397.90  |        918       2.27       2.27       7.72
+        2469.66  |       1661       4.11       4.11      11.83
+        2728.08  |       1835       4.55       4.55      16.38
+        2764.36  |       1500       3.72       3.72      20.10
+        2820.80  |       1810       4.48       4.48      24.58
+        3020.54  |       1083       2.68       2.68      27.26
+        3332.40  |       1904       4.72       4.72      31.98
+        3818.23  |       2398       5.94       5.94      37.92
+        4895.89  |       1055       2.61       2.61      40.53
+        6218.57  |       1668       4.13       4.13      44.66
+        8622.37  |       2745       6.80       6.80      51.46
+        9360.11  |       2204       5.46       5.46      56.92
+        9723.26  |       2216       5.49       5.49      62.41
+        11756.96 |       1767       4.38       4.38      66.79
+        11989.04 |       2010       4.98       4.98      71.77
+        12328.37 |       2358       5.84       5.84      77.61
+        12896.91 |       1755       4.35       4.35      81.96
+        12910.25 |       2499       6.19       6.19      88.15
+        12955.89 |       1539       3.81       3.81      91.96
+        13224.44 |       1673       4.14       4.14      96.11
+        16715.61 |       1572       3.89       3.89     100.00
+        Total    |      40368     100.00     100.00           
+--------------------------------------------------------------
+
+. 
+. 
+. * Kontrollvariablen
+. 
+. // Wohlstand eines Landes
+. 
+. lab var wealth "GDP per capita" // Average GDP per capita in PPS
+
+. 
+. fre wealth
+
+wealth -- GDP per capita
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   53    |       2198       5.44       5.44       5.44
+        66    |       1810       4.48       4.48       9.93
+        69    |        918       2.27       2.27      12.20
+        71    |       1083       2.68       2.68      14.89
+        72    |       3161       7.83       7.83      22.72
+        79    |       1055       2.61       2.61      25.33
+        82    |       1904       4.72       4.72      30.05
+        83    |       1835       4.55       4.55      34.59
+        91    |       1668       4.13       4.13      38.72
+        93    |       2398       5.94       5.94      44.66
+        97    |       2745       6.80       6.80      51.46
+        105   |       4214      10.44      10.44      61.90
+        110   |       1755       4.35       4.35      66.25
+        118   |       1767       4.38       4.38      70.63
+        120   |       1539       3.81       3.81      74.44
+        123   |       2358       5.84       5.84      80.28
+        127   |       2499       6.19       6.19      86.47
+        128   |       3245       8.04       8.04      94.51
+        190   |       2216       5.49       5.49     100.00
+        Total |      40368     100.00     100.00           
+-----------------------------------------------------------
+
+. 
+. // Anteil religiöser Bürger*innen eines Landes
+. 
+. fre rlgblg              // Belonging to particular religion or denomination
+
+rlgblg -- Belonging to particular religion or denomination
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  Yes        |      23398      57.96      58.39      58.39
+        2  No         |      16672      41.30      41.61     100.00
+        Total         |      40070      99.26     100.00           
+Missing .b Refusal    |        197       0.49                      
+        .c Don't know |         99       0.25                      
+        .d No answer  |          2       0.00                      
+        Total         |        298       0.74                      
+Total                 |      40368     100.00                      
+-------------------------------------------------------------------
+
+. 
+. cap drop religion_comp
+
+. gen religion_comp = .
+(40,368 missing values generated)
+
+. replace religion_comp = 46.00   if cntry == "BE"
+(1,767 real changes made)
+
+. replace religion_comp = 78.70   if cntry == "BG"
+(2,198 real changes made)
+
+. replace religion_comp = 20.66   if cntry == "CZ"
+(2,398 real changes made)
+
+. replace religion_comp = 58.07   if cntry == "DK"
+(1,572 real changes made)
+
+. replace religion_comp = 56.75   if cntry == "DE"
+(2,358 real changes made)
+
+. replace religion_comp = 27.05   if cntry == "EE"
+(1,904 real changes made)
+
+. replace religion_comp = 68.78   if cntry == "IE"
+(2,216 real changes made)
+
+. replace religion_comp = 62.55   if cntry == "ES"
+(1,668 real changes made)
+
+. replace religion_comp = 52.75   if cntry == "FR"
+(2,010 real changes made)
+
+. replace religion_comp = 69.13   if cntry == "HR"
+(1,810 real changes made)
+
+. replace religion_comp = 79.11   if cntry == "IT"
+(2,745 real changes made)
+
+. replace religion_comp = 44.70   if cntry == "LV"
+(918 real changes made)
+
+. replace religion_comp = 87.88   if cntry == "LT"
+(1,835 real changes made)
+
+. replace religion_comp = 51.81   if cntry == "HU"
+(1,661 real changes made)
+
+. replace religion_comp = 31.32   if cntry == "NL"
+(1,673 real changes made)
+
+. replace religion_comp = 73.65   if cntry == "AT"
+(2,499 real changes made)
+
+. replace religion_comp = 87.29   if cntry == "PL"
+(1,500 real changes made)
+
+. replace religion_comp = 71.13   if cntry == "PT"
+(1,055 real changes made)
+
+. replace religion_comp = 75.23   if cntry == "SK"
+(1,083 real changes made)
+
+. replace religion_comp = 56.00   if cntry == "FI"
+(1,755 real changes made)
+
+. replace religion_comp = 40.67   if cntry == "SE"
+(1,539 real changes made)
+
+. replace religion_comp = 45.80   if cntry == "GB"
+(2,204 real changes made)
+
+. 
+. lab var religion_comp "Percentage of religious" // Percentage of respondents reporting to be religio
+> us
+
+. 
+. fre religion_comp
+
+religion_comp -- Percentage of religious
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   20.66 |       2398       5.94       5.94       5.94
+        27.05 |       1904       4.72       4.72      10.66
+        31.32 |       1673       4.14       4.14      14.80
+        40.67 |       1539       3.81       3.81      18.61
+        44.7  |        918       2.27       2.27      20.89
+        45.8  |       2204       5.46       5.46      26.35
+        46    |       1767       4.38       4.38      30.72
+        51.81 |       1661       4.11       4.11      34.84
+        52.75 |       2010       4.98       4.98      39.82
+        56    |       1755       4.35       4.35      44.17
+        56.75 |       2358       5.84       5.84      50.01
+        58.07 |       1572       3.89       3.89      53.90
+        62.55 |       1668       4.13       4.13      58.03
+        68.78 |       2216       5.49       5.49      63.52
+        69.13 |       1810       4.48       4.48      68.01
+        71.13 |       1055       2.61       2.61      70.62
+        73.65 |       2499       6.19       6.19      76.81
+        75.23 |       1083       2.68       2.68      79.49
+        78.7  |       2198       5.44       5.44      84.94
+        79.11 |       2745       6.80       6.80      91.74
+        87.29 |       1500       3.72       3.72      95.45
+        87.88 |       1835       4.55       4.55     100.00
+        Total |      40368     100.00     100.00           
+-----------------------------------------------------------
+
+. 
+. // Index für Religiösität eines Individuums
+. 
+. fre rlgdgr              // How religious are you
+
+rlgdgr -- How religious are you
+-----------------------------------------------------------------------------
+                                |      Freq.    Percent      Valid       Cum.
+--------------------------------+--------------------------------------------
+Valid   0  Not at all religious |       7390      18.31      18.51      18.51
+        1  1                    |       2425       6.01       6.07      24.58
+        2  2                    |       2914       7.22       7.30      31.88
+        3  3                    |       3038       7.53       7.61      39.48
+        4  4                    |       2447       6.06       6.13      45.61
+        5  5                    |       5878      14.56      14.72      60.33
+        6  6                    |       3838       9.51       9.61      69.94
+        7  7                    |       4330      10.73      10.84      80.79
+        8  8                    |       3819       9.46       9.56      90.35
+        9  9                    |       1445       3.58       3.62      93.97
+        10 Very religious       |       2409       5.97       6.03     100.00
+        Total                   |      39933      98.92     100.00           
+Missing .b Refusal              |        194       0.48                      
+        .c Don't know           |        239       0.59                      
+        .d No answer            |          2       0.00                      
+        Total                   |        435       1.08                      
+Total                           |      40368     100.00                      
+-----------------------------------------------------------------------------
+
+. cap drop religion_degree
+
+. clonevar religion_degree        = rlgdgr
+(435 missing values generated)
+
+. fre religion_degree
+
+religion_degree -- How religious are you
+-----------------------------------------------------------------------------
+                                |      Freq.    Percent      Valid       Cum.
+--------------------------------+--------------------------------------------
+Valid   0  Not at all religious |       7390      18.31      18.51      18.51
+        1  1                    |       2425       6.01       6.07      24.58
+        2  2                    |       2914       7.22       7.30      31.88
+        3  3                    |       3038       7.53       7.61      39.48
+        4  4                    |       2447       6.06       6.13      45.61
+        5  5                    |       5878      14.56      14.72      60.33
+        6  6                    |       3838       9.51       9.61      69.94
+        7  7                    |       4330      10.73      10.84      80.79
+        8  8                    |       3819       9.46       9.56      90.35
+        9  9                    |       1445       3.58       3.62      93.97
+        10 Very religious       |       2409       5.97       6.03     100.00
+        Total                   |      39933      98.92     100.00           
+Missing .b Refusal              |        194       0.48                      
+        .c Don't know           |        239       0.59                      
+        .d No answer            |          2       0.00                      
+        Total                   |        435       1.08                      
+Total                           |      40368     100.00                      
+-----------------------------------------------------------------------------
+
+. 
+. fre rlgatnd             // How often attend religious services apart from special occasions
+
+rlgatnd -- How often attend religious services apart from special occasions
+----------------------------------------------------------------------------------
+                                     |      Freq.    Percent      Valid       Cum.
+-------------------------------------+--------------------------------------------
+Valid   1  Every day                 |        314       0.78       0.78       0.78
+        2  More than once a week     |        975       2.42       2.44       3.22
+        3  Once a week               |       4234      10.49      10.58      13.80
+        4  At least once a month     |       3823       9.47       9.55      23.35
+        5  Only on special holy days |       8658      21.45      21.63      44.98
+        6  Less often                |       7898      19.57      19.73      64.71
+        7  Never                     |      14125      34.99      35.29     100.00
+        Total                        |      40027      99.16     100.00           
+Missing .b Refusal                   |        209       0.52                      
+        .c Don't know                |        130       0.32                      
+        .d No answer                 |          2       0.00                      
+        Total                        |        341       0.84                      
+Total                                |      40368     100.00                      
+----------------------------------------------------------------------------------
+
+. cap drop religion_attend
+
+. clonevar religion_attend        = rlgatnd
+(341 missing values generated)
+
+. fre religion_attend
+
+religion_attend -- How often attend religious services apart from special occasions
+----------------------------------------------------------------------------------
+                                     |      Freq.    Percent      Valid       Cum.
+-------------------------------------+--------------------------------------------
+Valid   1  Every day                 |        314       0.78       0.78       0.78
+        2  More than once a week     |        975       2.42       2.44       3.22
+        3  Once a week               |       4234      10.49      10.58      13.80
+        4  At least once a month     |       3823       9.47       9.55      23.35
+        5  Only on special holy days |       8658      21.45      21.63      44.98
+        6  Less often                |       7898      19.57      19.73      64.71
+        7  Never                     |      14125      34.99      35.29     100.00
+        Total                        |      40027      99.16     100.00           
+Missing .b Refusal                   |        209       0.52                      
+        .c Don't know                |        130       0.32                      
+        .d No answer                 |          2       0.00                      
+        Total                        |        341       0.84                      
+Total                                |      40368     100.00                      
+----------------------------------------------------------------------------------
+
+. 
+. 
+. cap drop index_religion
+
+. gen index_religion = religion_degree * religion_attend
+(604 missing values generated)
+
+. fre index_religion
+
+index_religion
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |       7365      18.24      18.52      18.52
+        2     |          4       0.01       0.01      18.53
+        3     |          7       0.02       0.02      18.55
+        4     |         29       0.07       0.07      18.62
+        5     |        294       0.73       0.74      19.36
+        6     |        615       1.52       1.55      20.91
+        7     |       1553       3.85       3.91      24.81
+        8     |        100       0.25       0.25      25.07
+        9     |         82       0.20       0.21      25.27
+        10    |        762       1.89       1.92      27.19
+        12    |       1078       2.67       2.71      29.90
+        14    |       1522       3.77       3.83      33.73
+        15    |       1237       3.06       3.11      36.84
+        16    |        333       0.82       0.84      37.67
+        18    |       1497       3.71       3.76      41.44
+        20    |       1805       4.47       4.54      45.98
+        21    |       1898       4.70       4.77      50.75
+        24    |       2459       6.09       6.18      56.94
+        25    |       2019       5.00       5.08      62.01
+        27    |        523       1.30       1.32      63.33
+        28    |       1600       3.96       4.02      67.35
+        30    |       3627       8.98       9.12      76.47
+        32    |        773       1.91       1.94      78.42
+        35    |       2438       6.04       6.13      84.55
+        36    |       1105       2.74       2.78      87.33
+        40    |       1058       2.62       2.66      89.99
+        42    |       1366       3.38       3.44      93.42
+        45    |        194       0.48       0.49      93.91
+        48    |        506       1.25       1.27      95.18
+        49    |        552       1.37       1.39      96.57
+        50    |        249       0.62       0.63      97.20
+        54    |        132       0.33       0.33      97.53
+        56    |        415       1.03       1.04      98.57
+        60    |        201       0.50       0.51      99.08
+        63    |        118       0.29       0.30      99.38
+        70    |        248       0.61       0.62     100.00
+        Total |      39764      98.50     100.00           
+Missing .     |        604       1.50                      
+Total         |      40368     100.00                      
+-----------------------------------------------------------
+
+. 
+. lab var index_religion "Strength in religiosity"
+
+. 
+. // Soziodemographische Variablen
+. 
+. fre gndr                // Gender
+
+gndr -- Gender
+--------------------------------------------------------------
+                 |      Freq.    Percent      Valid       Cum.
+-----------------+--------------------------------------------
+Valid   1 Male   |      18478      45.77      45.77      45.77
+        2 Female |      21890      54.23      54.23     100.00
+        Total    |      40368     100.00     100.00           
+--------------------------------------------------------------
+
+. cap drop sex
+
+. clonevar sex = gndr
+
+. fre sex
+
+sex -- Gender
+--------------------------------------------------------------
+                 |      Freq.    Percent      Valid       Cum.
+-----------------+--------------------------------------------
+Valid   1 Male   |      18478      45.77      45.77      45.77
+        2 Female |      21890      54.23      54.23     100.00
+        Total    |      40368     100.00     100.00           
+--------------------------------------------------------------
+
+. lab var sex "Gender"
+
+. 
+. fre agea                // Age
+
+agea -- Age of respondent, calculated
+----------------------------------------------------------------------
+                         |      Freq.    Percent      Valid       Cum.
+-------------------------+--------------------------------------------
+Valid   15               |        198       0.49       0.49       0.49
+        16               |        353       0.87       0.88       1.37
+        17               |        374       0.93       0.93       2.30
+        18               |        403       1.00       1.00       3.30
+        19               |        473       1.17       1.18       4.48
+        20               |        399       0.99       0.99       5.47
+        21               |        428       1.06       1.06       6.54
+        22               |        433       1.07       1.08       7.61
+        23               |        433       1.07       1.08       8.69
+        24               |        443       1.10       1.10       9.79
+        25               |        385       0.95       0.96      10.75
+        26               |        486       1.20       1.21      11.96
+        27               |        484       1.20       1.20      13.16
+        28               |        504       1.25       1.25      14.41
+        29               |        511       1.27       1.27      15.69
+        30               |        525       1.30       1.31      16.99
+        31               |        537       1.33       1.34      18.33
+        32               |        518       1.28       1.29      19.62
+        33               |        524       1.30       1.30      20.92
+        34               |        523       1.30       1.30      22.22
+        :                |          :          :          :          :
+        71               |        691       1.71       1.72      84.34
+        72               |        624       1.55       1.55      85.89
+        73               |        562       1.39       1.40      87.29
+        74               |        492       1.22       1.22      88.51
+        75               |        452       1.12       1.12      89.63
+        76               |        424       1.05       1.05      90.69
+        77               |        469       1.16       1.17      91.86
+        78               |        446       1.10       1.11      92.96
+        79               |        449       1.11       1.12      94.08
+        80               |        403       1.00       1.00      95.08
+        81               |        288       0.71       0.72      95.80
+        82               |        293       0.73       0.73      96.53
+        83               |        244       0.60       0.61      97.13
+        84               |        225       0.56       0.56      97.69
+        85               |        178       0.44       0.44      98.14
+        86               |        194       0.48       0.48      98.62
+        87               |        129       0.32       0.32      98.94
+        88               |        105       0.26       0.26      99.20
+        89               |        101       0.25       0.25      99.45
+        90               |        220       0.54       0.55     100.00
+        Total            |      40209      99.61     100.00           
+Missing .d Not available |        159       0.39                      
+Total                    |      40368     100.00                      
+----------------------------------------------------------------------
+
+. cap drop age
+
+. clonevar age = agea
+(159 missing values generated)
+
+. fre age
+
+age -- Age of respondent, calculated
+----------------------------------------------------------------------
+                         |      Freq.    Percent      Valid       Cum.
+-------------------------+--------------------------------------------
+Valid   15               |        198       0.49       0.49       0.49
+        16               |        353       0.87       0.88       1.37
+        17               |        374       0.93       0.93       2.30
+        18               |        403       1.00       1.00       3.30
+        19               |        473       1.17       1.18       4.48
+        20               |        399       0.99       0.99       5.47
+        21               |        428       1.06       1.06       6.54
+        22               |        433       1.07       1.08       7.61
+        23               |        433       1.07       1.08       8.69
+        24               |        443       1.10       1.10       9.79
+        25               |        385       0.95       0.96      10.75
+        26               |        486       1.20       1.21      11.96
+        27               |        484       1.20       1.20      13.16
+        28               |        504       1.25       1.25      14.41
+        29               |        511       1.27       1.27      15.69
+        30               |        525       1.30       1.31      16.99
+        31               |        537       1.33       1.34      18.33
+        32               |        518       1.28       1.29      19.62
+        33               |        524       1.30       1.30      20.92
+        34               |        523       1.30       1.30      22.22
+        :                |          :          :          :          :
+        71               |        691       1.71       1.72      84.34
+        72               |        624       1.55       1.55      85.89
+        73               |        562       1.39       1.40      87.29
+        74               |        492       1.22       1.22      88.51
+        75               |        452       1.12       1.12      89.63
+        76               |        424       1.05       1.05      90.69
+        77               |        469       1.16       1.17      91.86
+        78               |        446       1.10       1.11      92.96
+        79               |        449       1.11       1.12      94.08
+        80               |        403       1.00       1.00      95.08
+        81               |        288       0.71       0.72      95.80
+        82               |        293       0.73       0.73      96.53
+        83               |        244       0.60       0.61      97.13
+        84               |        225       0.56       0.56      97.69
+        85               |        178       0.44       0.44      98.14
+        86               |        194       0.48       0.48      98.62
+        87               |        129       0.32       0.32      98.94
+        88               |        105       0.26       0.26      99.20
+        89               |        101       0.25       0.25      99.45
+        90               |        220       0.54       0.55     100.00
+        Total            |      40209      99.61     100.00           
+Missing .d Not available |        159       0.39                      
+Total                    |      40368     100.00                      
+----------------------------------------------------------------------
+
+. lab var age "Age"
+
+. 
+. fre hinctnta    // Household's total net income
+
+hinctnta -- Household's total net income, all sources
+------------------------------------------------------------------------
+                           |      Freq.    Percent      Valid       Cum.
+---------------------------+--------------------------------------------
+Valid   1  J - 1st decile  |       3388       8.39      10.50      10.50
+        2  R - 2nd decile  |       3676       9.11      11.39      21.88
+        3  C - 3rd decile  |       3516       8.71      10.89      32.78
+        4  M - 4th decile  |       3495       8.66      10.83      43.61
+        5  F - 5th decile  |       3369       8.35      10.44      54.04
+        6  S - 6th decile  |       3217       7.97       9.97      64.01
+        7  K - 7th decile  |       3275       8.11      10.15      74.16
+        8  P - 8th decile  |       3135       7.77       9.71      83.87
+        9  D - 9th decile  |       2649       6.56       8.21      92.08
+        10 H - 10th decile |       2558       6.34       7.92     100.00
+        Total              |      32278      79.96     100.00           
+Missing .b Refusal         |       5358      13.27                      
+        .c Don't know      |       2715       6.73                      
+        .d No answer       |         17       0.04                      
+        Total              |       8090      20.04                      
+Total                      |      40368     100.00                      
+------------------------------------------------------------------------
+
+. cap drop hinc
+
+. clonevar hinc = hinctnta
+(8,090 missing values generated)
+
+. fre hinc
+
+hinc -- Household's total net income, all sources
+------------------------------------------------------------------------
+                           |      Freq.    Percent      Valid       Cum.
+---------------------------+--------------------------------------------
+Valid   1  J - 1st decile  |       3388       8.39      10.50      10.50
+        2  R - 2nd decile  |       3676       9.11      11.39      21.88
+        3  C - 3rd decile  |       3516       8.71      10.89      32.78
+        4  M - 4th decile  |       3495       8.66      10.83      43.61
+        5  F - 5th decile  |       3369       8.35      10.44      54.04
+        6  S - 6th decile  |       3217       7.97       9.97      64.01
+        7  K - 7th decile  |       3275       8.11      10.15      74.16
+        8  P - 8th decile  |       3135       7.77       9.71      83.87
+        9  D - 9th decile  |       2649       6.56       8.21      92.08
+        10 H - 10th decile |       2558       6.34       7.92     100.00
+        Total              |      32278      79.96     100.00           
+Missing .b Refusal         |       5358      13.27                      
+        .c Don't know      |       2715       6.73                      
+        .d No answer       |         17       0.04                      
+        Total              |       8090      20.04                      
+Total                      |      40368     100.00                      
+------------------------------------------------------------------------
+
+. lab var hinc "Household's total net income"
+
+. 
+. fre hhmmb               // Number of people living regularly as member of household
+
+hhmmb -- Number of people living regularly as member of household
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1             |       9604      23.79      23.84      23.84
+        2             |      14443      35.78      35.85      59.69
+        3             |       7049      17.46      17.50      77.19
+        4             |       6166      15.27      15.31      92.50
+        5             |       2042       5.06       5.07      97.57
+        6             |        678       1.68       1.68      99.25
+        7             |        193       0.48       0.48      99.73
+        8             |         69       0.17       0.17      99.90
+        9             |         18       0.04       0.04      99.95
+        10            |          6       0.01       0.01      99.96
+        11            |          8       0.02       0.02      99.98
+        12            |          3       0.01       0.01      99.99
+        13            |          3       0.01       0.01     100.00
+        15            |          2       0.00       0.00     100.00
+        Total         |      40284      99.79     100.00           
+Missing .b Refusal    |         66       0.16                      
+        .c Don't know |         17       0.04                      
+        .d No answer  |          1       0.00                      
+        Total         |         84       0.21                      
+Total                 |      40368     100.00                      
+-------------------------------------------------------------------
+
+. cap drop hsize
+
+. clonevar hsize = hhmmb
+(84 missing values generated)
+
+. fre hsize
+
+hsize -- Number of people living regularly as member of household
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1             |       9604      23.79      23.84      23.84
+        2             |      14443      35.78      35.85      59.69
+        3             |       7049      17.46      17.50      77.19
+        4             |       6166      15.27      15.31      92.50
+        5             |       2042       5.06       5.07      97.57
+        6             |        678       1.68       1.68      99.25
+        7             |        193       0.48       0.48      99.73
+        8             |         69       0.17       0.17      99.90
+        9             |         18       0.04       0.04      99.95
+        10            |          6       0.01       0.01      99.96
+        11            |          8       0.02       0.02      99.98
+        12            |          3       0.01       0.01      99.99
+        13            |          3       0.01       0.01     100.00
+        15            |          2       0.00       0.00     100.00
+        Total         |      40284      99.79     100.00           
+Missing .b Refusal    |         66       0.16                      
+        .c Don't know |         17       0.04                      
+        .d No answer  |          1       0.00                      
+        Total         |         84       0.21                      
+Total                 |      40368     100.00                      
+-------------------------------------------------------------------
+
+. lab var hsize "Number of household members"
+
+. 
+. fre marsts              // Legal marital status
+
+marsts -- Legal marital status
+---------------------------------------------------------------------------------------------------
+                                                      |      Freq.    Percent      Valid       Cum.
+------------------------------------------------------+--------------------------------------------
+Valid   1  Legally married                            |        908       2.25       4.40       4.40
+        2  In a legally registered civil union        |        140       0.35       0.68       5.08
+        3  Legally separated                          |        487       1.21       2.36       7.44
+        4  Legally divorced/Civil union dissolved     |       3548       8.79      17.21      24.65
+        5  Widowed/Civil partner died                 |       3875       9.60      18.79      43.44
+        6  None of these (NEVER married or in legally |      11662      28.89      56.56     100.00
+           registered civil union)                    |                                            
+        Total                                         |      20620      51.08     100.00           
+Missing .a Not applicable                             |      18965      46.98                      
+        .b Refusal                                    |        192       0.48                      
+        .c Don't know                                 |         75       0.19                      
+        .d No answer                                  |        516       1.28                      
+        Total                                         |      19748      48.92                      
+Total                                                 |      40368     100.00                      
+---------------------------------------------------------------------------------------------------
+
+. cap drop marital
+
+. clonevar marital = marsts
+(19,748 missing values generated)
+
+. fre marital
+
+marital -- Legal marital status
+---------------------------------------------------------------------------------------------------
+                                                      |      Freq.    Percent      Valid       Cum.
+------------------------------------------------------+--------------------------------------------
+Valid   1  Legally married                            |        908       2.25       4.40       4.40
+        2  In a legally registered civil union        |        140       0.35       0.68       5.08
+        3  Legally separated                          |        487       1.21       2.36       7.44
+        4  Legally divorced/Civil union dissolved     |       3548       8.79      17.21      24.65
+        5  Widowed/Civil partner died                 |       3875       9.60      18.79      43.44
+        6  None of these (NEVER married or in legally |      11662      28.89      56.56     100.00
+           registered civil union)                    |                                            
+        Total                                         |      20620      51.08     100.00           
+Missing .a Not applicable                             |      18965      46.98                      
+        .b Refusal                                    |        192       0.48                      
+        .c Don't know                                 |         75       0.19                      
+        .d No answer                                  |        516       1.28                      
+        Total                                         |      19748      48.92                      
+Total                                                 |      40368     100.00                      
+---------------------------------------------------------------------------------------------------
+
+. lab var marital "Marital status"
+
+. 
+. fre domicil             // Domicile
+
+domicil -- Domicile, respondent's description
+-----------------------------------------------------------------------------------------
+                                            |      Freq.    Percent      Valid       Cum.
+--------------------------------------------+--------------------------------------------
+Valid   1  A big city                       |       8374      20.74      20.76      20.76
+        2  Suburbs or outskirts of big city |       4197      10.40      10.41      31.17
+        3  Town or small city               |      12750      31.58      31.61      62.78
+        4  Country village                  |      12753      31.59      31.62      94.39
+        5  Farm or home in countryside      |       2262       5.60       5.61     100.00
+        Total                               |      40336      99.92     100.00           
+Missing .b Refusal                          |         16       0.04                      
+        .c Don't know                       |         15       0.04                      
+        .d No answer                        |          1       0.00                      
+        Total                               |         32       0.08                      
+Total                                       |      40368     100.00                      
+-----------------------------------------------------------------------------------------
+
+. lab var domicil "Domicile"
+
+. 
+. fre eisced              // Highest level of education, ES - ISCED
+
+eisced -- Highest level of education, ES - ISCED
+-----------------------------------------------------------------------------------------------------
+                                                        |      Freq.    Percent      Valid       Cum.
+--------------------------------------------------------+--------------------------------------------
+Valid   1  ES-ISCED I , less than lower secondary       |       3267       8.09       8.11       8.11
+        2  ES-ISCED II, lower secondary                 |       6862      17.00      17.04      25.15
+        3  ES-ISCED IIIb, lower tier upper secondary    |       6372      15.78      15.82      40.97
+        4  ES-ISCED IIIa, upper tier upper secondary    |       8987      22.26      22.31      63.28
+        5  ES-ISCED IV, advanced vocational, sub-degree |       5064      12.54      12.57      75.86
+        6  ES-ISCED V1, lower tertiary education, BA    |       4190      10.38      10.40      86.26
+           level                                        |                                            
+        7  ES-ISCED V2, higher tertiary education, >=   |       5394      13.36      13.39      99.65
+           MA level                                     |                                            
+        55 Other                                        |        139       0.34       0.35     100.00
+        Total                                           |      40275      99.77     100.00           
+Missing .b Refusal                                      |         53       0.13                      
+        .c Don't know                                   |         36       0.09                      
+        .d No answer                                    |          4       0.01                      
+        Total                                           |         93       0.23                      
+Total                                                   |      40368     100.00                      
+-----------------------------------------------------------------------------------------------------
+
+. cap drop edulvl
+
+. clonevar edulvl = eisced
+(93 missing values generated)
+
+. fre edulvl
+
+edulvl -- Highest level of education, ES - ISCED
+-----------------------------------------------------------------------------------------------------
+                                                        |      Freq.    Percent      Valid       Cum.
+--------------------------------------------------------+--------------------------------------------
+Valid   1  ES-ISCED I , less than lower secondary       |       3267       8.09       8.11       8.11
+        2  ES-ISCED II, lower secondary                 |       6862      17.00      17.04      25.15
+        3  ES-ISCED IIIb, lower tier upper secondary    |       6372      15.78      15.82      40.97
+        4  ES-ISCED IIIa, upper tier upper secondary    |       8987      22.26      22.31      63.28
+        5  ES-ISCED IV, advanced vocational, sub-degree |       5064      12.54      12.57      75.86
+        6  ES-ISCED V1, lower tertiary education, BA    |       4190      10.38      10.40      86.26
+           level                                        |                                            
+        7  ES-ISCED V2, higher tertiary education, >=   |       5394      13.36      13.39      99.65
+           MA level                                     |                                            
+        55 Other                                        |        139       0.34       0.35     100.00
+        Total                                           |      40275      99.77     100.00           
+Missing .b Refusal                                      |         53       0.13                      
+        .c Don't know                                   |         36       0.09                      
+        .d No answer                                    |          4       0.01                      
+        Total                                           |         93       0.23                      
+Total                                                   |      40368     100.00                      
+-----------------------------------------------------------------------------------------------------
+
+. lab var edulvl "Highest level of education"
+
+. 
+. 
+. // Zentrierung der unabhängigen Variablen
+. 
+. sum index_capital
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+index_capi~l |     38,109     35.3648     8.09438          7         71
+
+. gen c_index_capital = index_capital - r(mean)
+(2,259 missing values generated)
+
+. lab var c_index_capital "Social capital"
+
+. 
+. sum index_religion
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+index_reli~n |     39,764    21.44812    15.25635          0         70
+
+. gen c_index_religion = index_religion - r(mean)
+(604 missing values generated)
+
+. lab var c_index_religion "Strength in religiosity"
+
+. 
+. sum age
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+         age |     40,209    51.29722    18.66937         15         90
+
+. gen c_age = age - r(mean)
+(159 missing values generated)
+
+. lab var c_age "Age"
+
+. 
+. sum edulvl
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+      edulvl |     40,275    4.169286    3.502203          1         55
+
+. gen c_edulvl = edulvl - r(mean)
+(93 missing values generated)
+
+. lab var c_edulvl "Highest level of education"
+
+. 
+. sum hsize
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       hsize |     40,284    2.504642    1.322997          1         15
+
+. gen c_hsize = hsize - r(mean)
+(84 missing values generated)
+
+. lab var c_hsize "Number of household members"
+
+. 
+. 
+. // Interaktionseffekt aus Regimetyp und Sozialausgaben
+. 
+. gen capital_wtype = index_capital * welfare_type
+(2,259 missing values generated)
+
+. 
+. 
+. save "outputs\final_dataset.dta", replace
+file outputs\final_dataset.dta saved
+
+. 
+. clear
+
+. 
+end of do-file
+
+. do "jobs\analysis_descriptives.do"                      // regression analysis
+
+. **** Deskriptive Befunde
+. 
+. use "outputs\final_dataset.dta", clear
+
+. 
+. 
+. ** Datenstruktur
+. 
+. cap drop cntry_id
+
+. gen cntry_id = .
+(40,368 missing values generated)
+
+. 
+. replace cntry_id = 1    if cntry == "BE"
+(1,767 real changes made)
+
+. replace cntry_id = 2    if cntry == "BG"
+(2,198 real changes made)
+
+. replace cntry_id = 3    if cntry == "CZ"
+(2,398 real changes made)
+
+. replace cntry_id = 4    if cntry == "DK"
+(1,572 real changes made)
+
+. replace cntry_id = 5    if cntry == "DE"
+(2,358 real changes made)
+
+. replace cntry_id = 6    if cntry == "EE"
+(1,904 real changes made)
+
+. replace cntry_id = 7    if cntry == "IE"
+(2,216 real changes made)
+
+. replace cntry_id = 8    if cntry == "ES"
+(1,668 real changes made)
+
+. replace cntry_id = 9    if cntry == "FR"
+(2,010 real changes made)
+
+. replace cntry_id = 10   if cntry == "HR"
+(1,810 real changes made)
+
+. replace cntry_id = 11   if cntry == "IT"
+(2,745 real changes made)
+
+. replace cntry_id = 12   if cntry == "LV"
+(918 real changes made)
+
+. replace cntry_id = 13   if cntry == "LT"
+(1,835 real changes made)
+
+. replace cntry_id = 14   if cntry == "HU"
+(1,661 real changes made)
+
+. replace cntry_id = 15   if cntry == "NL"
+(1,673 real changes made)
+
+. replace cntry_id = 16   if cntry == "AT"
+(2,499 real changes made)
+
+. replace cntry_id = 17   if cntry == "PL"
+(1,500 real changes made)
+
+. replace cntry_id = 18   if cntry == "PT"
+(1,055 real changes made)
+
+. replace cntry_id = 19   if cntry == "SK"
+(1,083 real changes made)
+
+. replace cntry_id = 20   if cntry == "FI"
+(1,755 real changes made)
+
+. replace cntry_id = 21   if cntry == "SE"
+(1,539 real changes made)
+
+. replace cntry_id = 22   if cntry == "GB"
+(2,204 real changes made)
+
+. 
+. lab var cntry_id "Country identifier"
+
+. 
+. quietly: xtset cntry_id
+
+. xtsum index_politparti index_capital welfare_exp welfare_type if e(sample) // Untersuchung wie stark
+>  die Variablen auf Level-1-Ebene und Level-2-Ebene variieren
+
+Variable         |      Mean   Std. dev.       Min        Max |    Observations
+-----------------+--------------------------------------------+----------------
+index_~i overall |         .          .          .          . |     N =       0
+         between |                    .          .          . |     n =       0
+         within  |                    .          .          . |     T =       .
+                 |                                            |
+index_~l overall |         .          .          .          . |     N =       0
+         between |                    .          .          . |     n =       0
+         within  |                    .          .          . |     T =       .
+                 |                                            |
+welfar~p overall |         .          .          .          . |     N =       0
+         between |                    .          .          . |     n =       0
+         within  |                    .          .          . |     T =       .
+                 |                                            |
+welfar~e overall |         .          .          .          . |     N =       0
+         between |                    .          .          . |     n =       0
+         within  |                    .          .          . |     T =       .
+
+. 
+. 
+. ** Korrelation des Sozialkapitals und der politischen Partizipation auf Länderebene
+. 
+. preserve
+
+. 
+. 
+. collapse (mean) age index_religion index_politparti index_capital index_trust index_network index_no
+> rms religion_comp wealth welfare_exp, by(cntry) // --> Aggregation von Individualmerkmalen auf die L
+> änder
+
+. 
+. export delimited using "outputs\aggregated_dataset.csv", replace
+file outputs\aggregated_dataset.csv saved
+
+. 
+. 
+. pwcorr index_politparti index_capital, sig star(.05) // Pearson-Korrelation
+
+             | index_~i index_~l
+-------------+------------------
+index_poli~i |   1.0000 
+             |
+             |
+index_capi~l |   0.9178*  1.0000 
+             |   0.0000
+             |
+
+. pwcorr index_capital welfare_exp, sig star(.05)
+
+             | index_~l welfar~p
+-------------+------------------
+index_capi~l |   1.0000 
+             |
+             |
+ welfare_exp |   0.8987*  1.0000 
+             |   0.0000
+             |
+
+. 
+. egen pos = mlabvpos(index_politparti index_capital)
+
+. 
+. replace pos = 12 if cntry == "BE"
+(0 real changes made)
+
+. replace pos = 12 if cntry == "IT"
+(1 real change made)
+
+. replace pos = 3 if cntry == "EE"
+(1 real change made)
+
+. replace pos = 12 if cntry == "CZ"
+(1 real change made)
+
+. replace pos = 9 if cntry == "LV"
+(1 real change made)
+
+. replace pos = 4 if cntry == "BG"
+(1 real change made)
+
+. replace pos = 3 if cntry == "FI"
+(1 real change made)
+
+. replace pos = 3 if cntry == "SK"
+(1 real change made)
+
+. replace pos = 3 if cntry == "HR"
+(1 real change made)
+
+. replace pos = 9 if cntry == "FR"
+(1 real change made)
+
+. replace pos = 6 if cntry == "ES"
+(1 real change made)
+
+. replace pos = 1 if cntry == "GB"
+(1 real change made)
+
+. 
+. twoway lfit index_politparti index_capital || scatter index_politparti index_capital, mlabel(cntry) 
+> mlabvpos(pos) ||, ytitle(Political participation, size(medium)) xtitle(Social capital) title("Correl
+> ation between political participation and social capital at country level", size(medsmall)) ylabel(0
+>  (1) 4) xlabel(28 (5) 43) graphregion(fcolor(white))
+
+. 
+. graph export "results\corr_scapital_participation.pdf", replace
+file results\corr_scapital_participation.pdf saved as PDF format
+
+.  
+. 
+. restore
+
+. 
+. clear
+
+. 
+end of do-file
+
+. do "jobs\analysis_regressions.do"                       // regression analysis
+
+. **** Mehrebenenanalyse
+. 
+. use "outputs\final_dataset.dta", clear
+
+. 
+. 
+. // Konstante Samplegröße über Modelle hinweg
+. 
+. quietly: mixed index_politparti index_capital index_religion sex age hinc edulvl marital hsize domic
+> il religion_comp wealth welfare_exp i.welfare_type || cntry: index_capital, covariance(unstructured)
+>  variance reml
+
+. 
+. 
+. ** Intraklassenkorrelationskoeffizienten
+. 
+. mixed index_politparti || cntry: if e(sample), variance reml
+
+Performing EM optimization ...
+
+Performing gradient-based optimization: 
+Iteration 0:   log restricted-likelihood = -29101.757  
+Iteration 1:   log restricted-likelihood = -29101.757  
+
+Computing standard errors ...
+
+Mixed-effects REML regression                   Number of obs     =     13,873
+Group variable: cntry                           Number of groups  =         22
+                                                Obs per group:
+                                                              min =         72
+                                                              avg =      630.6
+                                                              max =      1,030
+                                                Wald chi2(0)      =          .
+Log restricted-likelihood = -29101.757          Prob > chi2       =          .
+
+----------------------------------------------------------------------------------
+index_politparti | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-----------------+----------------------------------------------------------------
+           _cons |    2.11136   .1500708    14.07   0.000     1.817226    2.405493
+----------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
+-----------------------------+------------------------------------------------
+cntry: Identity              |
+                  var(_cons) |   .4870209   .1523627      .2637863    .8991722
+-----------------------------+------------------------------------------------
+               var(Residual) |    3.86014   .0463848       3.77029    3.952132
+------------------------------------------------------------------------------
+LR test vs. linear model: chibar2(01) = 1488.45       Prob >= chibar2 = 0.0000
+
+. estat icc
+
+Intraclass correlation
+
+------------------------------------------------------------------------------
+                       Level |        ICC   Std. err.     [95% conf. interval]
+-----------------------------+------------------------------------------------
+                       cntry |   .1120319   .0311456      .0639372    .1889997
+------------------------------------------------------------------------------
+
+. 
+. 
+. ** Random-Intercept-Modell
+. 
+. mixed index_politparti c_index_capital c_index_religion i.sex c_age hinc c_edulvl marital c_hsize do
+> micil || cntry: if e(sample), variance reml
+
+Performing EM optimization ...
+
+Performing gradient-based optimization: 
+Iteration 0:   log restricted-likelihood = -28667.812  
+Iteration 1:   log restricted-likelihood = -28667.812  
+
+Computing standard errors ...
+
+Mixed-effects REML regression                   Number of obs     =     13,873
+Group variable: cntry                           Number of groups  =         22
+                                                Obs per group:
+                                                              min =         72
+                                                              avg =      630.6
+                                                              max =      1,030
+                                                Wald chi2(9)      =     980.26
+Log restricted-likelihood = -28667.812          Prob > chi2       =     0.0000
+
+----------------------------------------------------------------------------------
+index_politparti | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-----------------+----------------------------------------------------------------
+ c_index_capital |   .0434661   .0021678    20.05   0.000     .0392173     .047715
+c_index_religion |  -.0031859   .0010723    -2.97   0.003    -.0052876   -.0010842
+                 |
+             sex |
+         Female  |   .0424763    .033726     1.26   0.208    -.0236255    .1085781
+           c_age |  -.0022555   .0010531    -2.14   0.032    -.0043195   -.0001915
+            hinc |   .0731002   .0069309    10.55   0.000      .059516    .0866845
+        c_edulvl |   .0617121   .0050861    12.13   0.000     .0517436    .0716806
+         marital |  -.0522368   .0140042    -3.73   0.000    -.0796846    -.024789
+         c_hsize |   -.037135    .016223    -2.29   0.022    -.0689314   -.0053386
+         domicil |   -.074936   .0136004    -5.51   0.000    -.1015923   -.0482797
+           _cons |   2.225258   .1459446    15.25   0.000     1.939212    2.511304
+----------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
+-----------------------------+------------------------------------------------
+cntry: Identity              |
+                  var(_cons) |   .2678602    .084824      .1439978     .498265
+-----------------------------+------------------------------------------------
+               var(Residual) |   3.611283   .0434085      3.527199    3.697373
+------------------------------------------------------------------------------
+LR test vs. linear model: chibar2(01) = 777.55        Prob >= chibar2 = 0.0000
+
+. 
+. ** Random-Slope-Modell
+. 
+. quietly: mixed index_politparti c_index_capital c_index_religion i.sex c_age hinc c_edulvl marital c
+> _hsize domicil || cntry: if e(sample), variance reml
+
+. 
+. estimates store ri
+
+. 
+. quietly: mixed index_politparti c_index_capital c_index_religion i.sex c_age hinc c_edulvl marital c
+> _hsize domicil || cntry: c_index_capital if e(sample), covariance(unstructured) variance reml
+
+. 
+. estimates store rs
+
+. 
+. lrtest ri rs
+
+Likelihood-ratio test
+Assumption: ri nested within rs
+
+ LR chi2(2) =  57.91
+Prob > chi2 = 0.0000
+
+Note: The reported degrees of freedom assumes the null hypothesis is not on the boundary of the
+      parameter space. If this is not true, then the reported test is conservative.
+Note: LR tests based on REML are valid only when the fixed-effects specification is identical for
+      both models.
+
+. 
+. 
+. ** Random-Slope-Plot für den Sozialkapital-Index
+. 
+. quietly: mixed index_politparti index_capital || cntry: index_capital if e(sample), variance reml
+
+. predict predscore, fitted
+(2,259 missing values generated)
+
+. sort cntry index_capital
+
+. egen pickone = tag(cntry index_capital)
+
+. twoway connected predscore index_capital if pickone == 1, connect(ascending) ytitle("Fitted values: 
+> Politische Partizipation", size(medium)) name(rs_plot, replace) xtitle(Punkte auf dem Sozialkapital-
+> Index) title("Random-Slope-Plot für die Variable Sozialkapital") ylabel(0 (1) 6) xlabel(0 (10) 75) y
+> tick(#10) xtick(#20) graphregion(fcolor(white))
+
+. 
+. graph export "results\random-slope-plot.pdf", replace
+file results\random-slope-plot.pdf saved as PDF format
+
+. 
+. 
+. ** Modellaufbau
+. 
+. eststo clear
+
+. eststo Modell_1: mixed index_politparti c_index_capital|| cntry: c_index_capital if e(sample), covar
+> iance(unstructured) variance reml
+
+Performing EM optimization ...
+
+Performing gradient-based optimization: 
+Iteration 0:   log restricted-likelihood = -28817.574  
+Iteration 1:   log restricted-likelihood = -28817.574  
+
+Computing standard errors ...
+
+Mixed-effects REML regression                   Number of obs     =     13,873
+Group variable: cntry                           Number of groups  =         22
+                                                Obs per group:
+                                                              min =         72
+                                                              avg =      630.6
+                                                              max =      1,030
+                                                Wald chi2(1)      =     114.03
+Log restricted-likelihood = -28817.574          Prob > chi2       =     0.0000
+
+----------------------------------------------------------------------------------
+index_politparti | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-----------------+----------------------------------------------------------------
+ c_index_capital |   .0524934   .0049158    10.68   0.000     .0428586    .0621283
+           _cons |   2.091385   .1177714    17.76   0.000     1.860557    2.322213
+----------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
+-----------------------------+------------------------------------------------
+cntry: Unstructured          |
+        var(c_index_capital) |   .0004113   .0001695      .0001834    .0009225
+                  var(_cons) |   .2959017    .093869      .1588987     .551029
+  cov(c_index_capital,_cons) |   .0083422   .0033039      .0018667    .0148177
+-----------------------------+------------------------------------------------
+               var(Residual) |   3.699781   .0445029      3.613577    3.788042
+------------------------------------------------------------------------------
+LR test vs. linear model: chi2(3) = 842.12                Prob > chi2 = 0.0000
+
+Note: LR test is conservative and provided only for reference.
+
+. eststo Modell_2: mixed index_politparti c_index_capital c_index_religion i.sex c_age hinc c_edulvl m
+> arital c_hsize domicil || cntry: c_index_capital if e(sample), covariance(unstructured) variance rem
+> l
+
+Performing EM optimization ...
+
+Performing gradient-based optimization: 
+Iteration 0:   log restricted-likelihood = -28638.857  
+Iteration 1:   log restricted-likelihood = -28638.857  
+
+Computing standard errors ...
+
+Mixed-effects REML regression                   Number of obs     =     13,873
+Group variable: cntry                           Number of groups  =         22
+                                                Obs per group:
+                                                              min =         72
+                                                              avg =      630.6
+                                                              max =      1,030
+                                                Wald chi2(9)      =     552.83
+Log restricted-likelihood = -28638.857          Prob > chi2       =     0.0000
+
+----------------------------------------------------------------------------------
+index_politparti | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-----------------+----------------------------------------------------------------
+ c_index_capital |   .0451275   .0047413     9.52   0.000     .0358347    .0544202
+c_index_religion |   -.003169   .0010699    -2.96   0.003     -.005266    -.001072
+                 |
+             sex |
+         Female  |   .0395762   .0336469     1.18   0.240    -.0263705    .1055229
+           c_age |   -.002722   .0010529    -2.59   0.010    -.0047857   -.0006583
+            hinc |   .0728703   .0069173    10.53   0.000     .0593126    .0864279
+        c_edulvl |    .061114   .0050755    12.04   0.000     .0511662    .0710618
+         marital |   -.053304    .013969    -3.82   0.000    -.0806826   -.0259253
+         c_hsize |  -.0398322   .0161766    -2.46   0.014    -.0715378   -.0081266
+         domicil |  -.0751481   .0135737    -5.54   0.000    -.1017521    -.048544
+           _cons |   2.190637   .1485495    14.75   0.000     1.899485    2.481789
+----------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
+-----------------------------+------------------------------------------------
+cntry: Unstructured          |
+        var(c_index_capital) |   .0003765   .0001559      .0001672    .0008475
+                  var(_cons) |   .2846595   .0903161      .1528475    .5301428
+  cov(c_index_capital,_cons) |   .0086159   .0032117      .0023211    .0149108
+-----------------------------+------------------------------------------------
+               var(Residual) |   3.591813   .0432199      3.508094    3.677529
+------------------------------------------------------------------------------
+LR test vs. linear model: chi2(3) = 835.46                Prob > chi2 = 0.0000
+
+Note: LR test is conservative and provided only for reference.
+
+. eststo Modell_3: mixed index_politparti c_index_capital welfare_exp || cntry: c_index_capital if e(s
+> ample), covariance(unstructured) variance reml
+
+Performing EM optimization ...
+
+Performing gradient-based optimization: 
+Iteration 0:   log restricted-likelihood = -28819.377  
+Iteration 1:   log restricted-likelihood = -28819.377  
+
+Computing standard errors ...
+
+Mixed-effects REML regression                   Number of obs     =     13,873
+Group variable: cntry                           Number of groups  =         22
+                                                Obs per group:
+                                                              min =         72
+                                                              avg =      630.6
+                                                              max =      1,030
+                                                Wald chi2(2)      =     145.93
+Log restricted-likelihood = -28819.377          Prob > chi2       =     0.0000
+
+----------------------------------------------------------------------------------
+index_politparti | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-----------------+----------------------------------------------------------------
+ c_index_capital |   .0530194    .005032    10.54   0.000      .043157    .0628819
+     welfare_exp |   .0000709   .0000126     5.62   0.000     .0000462    .0000956
+           _cons |     1.5506   .1229724    12.61   0.000     1.309578    1.791621
+----------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
+-----------------------------+------------------------------------------------
+cntry: Unstructured          |
+        var(c_index_capital) |   .0004352   .0001763      .0001967     .000963
+                  var(_cons) |    .122701   .0426523      .0620813    .2425133
+  cov(c_index_capital,_cons) |     .00542   .0022858      .0009399    .0099001
+-----------------------------+------------------------------------------------
+               var(Residual) |   3.699723   .0444998      3.613525    3.787978
+------------------------------------------------------------------------------
+LR test vs. linear model: chi2(3) = 344.08                Prob > chi2 = 0.0000
+
+Note: LR test is conservative and provided only for reference.
+
+. eststo Modell_4: mixed index_politparti c_index_capital welfare_exp i.welfare_type || cntry: c_index
+> _capital if e(sample), covariance(unstructured) variance reml
+
+Performing EM optimization ...
+
+Performing gradient-based optimization: 
+Iteration 0:   log restricted-likelihood = -28815.871  
+Iteration 1:   log restricted-likelihood =  -28815.86  
+Iteration 2:   log restricted-likelihood =  -28815.86  
+
+Computing standard errors ...
+
+Mixed-effects REML regression                   Number of obs     =     13,873
+Group variable: cntry                           Number of groups  =         22
+                                                Obs per group:
+                                                              min =         72
+                                                              avg =      630.6
+                                                              max =      1,030
+                                                Wald chi2(6)      =     170.88
+Log restricted-likelihood =  -28815.86          Prob > chi2       =     0.0000
+
+---------------------------------------------------------------------------------------------
+           index_politparti | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+----------------------------+----------------------------------------------------------------
+            c_index_capital |   .0530048   .0050042    10.59   0.000     .0431967    .0628129
+                welfare_exp |   -.000012   .0000528    -0.23   0.820    -.0001155    .0000915
+                            |
+               welfare_type |
+                   Liberal  |   -.691683   .3253986    -2.13   0.034    -1.329453   -.0539135
+Conservative-Corporatistic  |  -.6891801   .2045071    -3.37   0.001    -1.090007   -.2883535
+            Post-Communist  |  -1.282098   .6211271    -2.06   0.039    -2.499485   -.0647113
+                 Latin-Rim  |  -1.116296   .4388667    -2.54   0.011    -1.976458   -.2561327
+                            |
+                      _cons |   3.084275   .7599897     4.06   0.000     1.594722    4.573827
+---------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
+-----------------------------+------------------------------------------------
+cntry: Unstructured          |
+        var(c_index_capital) |   .0004302   .0001744      .0001944    .0009522
+                  var(_cons) |   .1138181   .0555557      .0437252    .2962723
+  cov(c_index_capital,_cons) |   .0059079   .0028826       .000258    .0115577
+-----------------------------+------------------------------------------------
+               var(Residual) |   3.699371   .0444904      3.613191    3.787607
+------------------------------------------------------------------------------
+LR test vs. linear model: chi2(3) = 155.09                Prob > chi2 = 0.0000
+
+Note: LR test is conservative and provided only for reference.
+
+. eststo Modell_5: mixed index_politparti c_index_capital c_index_religion i.sex c_age hinc c_edulvl m
+> arital c_hsize domicil religion_comp wealth welfare_exp i.welfare_type || cntry: c_index_capital if 
+> e(sample), covariance(unstructured) variance reml
+
+Performing EM optimization ...
+
+Performing gradient-based optimization: 
+Iteration 0:   log restricted-likelihood = -28646.934  
+Iteration 1:   log restricted-likelihood = -28646.884  
+Iteration 2:   log restricted-likelihood = -28646.883  
+
+Computing standard errors ...
+
+Mixed-effects REML regression                   Number of obs     =     13,873
+Group variable: cntry                           Number of groups  =         22
+                                                Obs per group:
+                                                              min =         72
+                                                              avg =      630.6
+                                                              max =      1,030
+                                                Wald chi2(16)     =     615.96
+Log restricted-likelihood = -28646.883          Prob > chi2       =     0.0000
+
+---------------------------------------------------------------------------------------------
+           index_politparti | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+----------------------------+----------------------------------------------------------------
+            c_index_capital |   .0457132   .0048107     9.50   0.000     .0362844     .055142
+           c_index_religion |  -.0030627   .0010693    -2.86   0.004    -.0051585    -.000967
+                            |
+                        sex |
+                    Female  |   .0436365   .0336563     1.30   0.195    -.0223287    .1096016
+                      c_age |  -.0026296   .0010539    -2.50   0.013    -.0046951    -.000564
+                       hinc |   .0729006   .0069141    10.54   0.000     .0593492     .086452
+                   c_edulvl |   .0608592   .0050751    11.99   0.000     .0509122    .0708062
+                    marital |  -.0536799   .0139645    -3.84   0.000    -.0810497     -.02631
+                    c_hsize |  -.0389707   .0161585    -2.41   0.016    -.0706407   -.0073007
+                    domicil |  -.0757029    .013562    -5.58   0.000     -.102284   -.0491218
+              religion_comp |  -.0005429   .0025599    -0.21   0.832    -.0055602    .0044743
+                     wealth |   .0042956   .0031845     1.35   0.177    -.0019459     .010537
+                welfare_exp |  -.0000438   .0000562    -0.78   0.436     -.000154    .0000664
+                            |
+               welfare_type |
+                   Liberal  |  -.8592074   .3636764    -2.36   0.018       -1.572   -.1464148
+Conservative-Corporatistic  |  -.7054277    .198425    -3.56   0.000    -1.094334   -.3165218
+            Post-Communist  |  -1.349523   .6039673    -2.23   0.025    -2.533278   -.1657692
+                 Latin-Rim  |   -1.14905   .4209939    -2.73   0.006    -1.974182   -.3239167
+                            |
+                      _cons |   3.087573   .7566959     4.08   0.000     1.604476    4.570669
+---------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
+-----------------------------+------------------------------------------------
+cntry: Unstructured          |
+        var(c_index_capital) |     .00039   .0001597      .0001748    .0008703
+                  var(_cons) |    .118107   .0582593      .0449157     .310565
+  cov(c_index_capital,_cons) |   .0061283   .0027929      .0006542    .0116023
+-----------------------------+------------------------------------------------
+               var(Residual) |   3.591358   .0432056      3.507667    3.677046
+------------------------------------------------------------------------------
+LR test vs. linear model: chi2(3) = 125.76                Prob > chi2 = 0.0000
+
+Note: LR test is conservative and provided only for reference.
+
+. eststo Modell_6: mixed index_politparti index_capital index_religion i.sex age hinc edulvl marital h
+> size domicil religion_comp wealth welfare_exp i.welfare_type capital_wtype || cntry: index_capital i
+> f e(sample), covariance(unstructured) variance reml
+
+Performing EM optimization ...
+
+Performing gradient-based optimization: 
+Iteration 0:   log restricted-likelihood =  -28651.81  
+Iteration 1:   log restricted-likelihood = -28651.496  
+Iteration 2:   log restricted-likelihood = -28651.491  
+Iteration 3:   log restricted-likelihood = -28651.491  
+
+Computing standard errors ...
+
+Mixed-effects REML regression                   Number of obs     =     13,873
+Group variable: cntry                           Number of groups  =         22
+                                                Obs per group:
+                                                              min =         72
+                                                              avg =      630.6
+                                                              max =      1,030
+                                                Wald chi2(17)     =     609.43
+Log restricted-likelihood = -28651.491          Prob > chi2       =     0.0000
+
+---------------------------------------------------------------------------------------------
+           index_politparti | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+----------------------------+----------------------------------------------------------------
+              index_capital |   .0464819   .0140042     3.32   0.001     .0190342    .0739295
+             index_religion |  -.0030614   .0010693    -2.86   0.004    -.0051572   -.0009655
+                            |
+                        sex |
+                    Female  |   .0436102   .0336618     1.30   0.195    -.0223658    .1095862
+                        age |   -.002635   .0010544    -2.50   0.012    -.0047016   -.0005684
+                       hinc |   .0728994   .0069142    10.54   0.000     .0593477     .086451
+                     edulvl |   .0608479   .0050751    11.99   0.000     .0509008     .070795
+                    marital |  -.0536828   .0139647    -3.84   0.000    -.0810531   -.0263124
+                      hsize |  -.0389754   .0161588    -2.41   0.016    -.0706462   -.0073047
+                    domicil |  -.0756833   .0135624    -5.58   0.000    -.1022651   -.0491014
+              religion_comp |  -.0005404   .0025696    -0.21   0.833    -.0055767     .004496
+                     wealth |   .0042749   .0031952     1.34   0.181    -.0019876    .0105374
+                welfare_exp |  -.0000435   .0000564    -0.77   0.440     -.000154     .000067
+                            |
+               welfare_type |
+                   Liberal  |    -.85159   .3770781    -2.26   0.024    -1.590649   -.1125306
+Conservative-Corporatistic  |  -.6943207   .2744824    -2.53   0.011    -1.232296    -.156345
+            Post-Communist  |  -1.332868   .6598859    -2.02   0.043    -2.626221   -.0395157
+                 Latin-Rim  |  -1.128015   .5624127    -2.01   0.045    -2.230323   -.0257058
+                            |
+              capital_wtype |   -.000224   .0040228    -0.06   0.956    -.0081086    .0076606
+                      _cons |   1.501144   .7951358     1.89   0.059    -.0572932    3.059582
+---------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
+-----------------------------+------------------------------------------------
+cntry: Unstructured          |
+          var(index_capital) |   .0004162   .0001726      .0001846    .0009383
+                  var(_cons) |   .1870687   .1373928       .044344    .7891638
+    cov(index_capital,_cons) |  -.0082777    .004546     -.0171878    .0006324
+-----------------------------+------------------------------------------------
+               var(Residual) |    3.59133   .0432051       3.50764    3.677017
+------------------------------------------------------------------------------
+LR test vs. linear model: chi2(3) = 126.14                Prob > chi2 = 0.0000
+
+Note: LR test is conservative and provided only for reference.
+
+. esttab Modell_1 Modell_2 Modell_3 Modell_4 Modell_5 Modell_6 using "results\regressiontabelle.tex", 
+> compress nogap label replace nodep nobase
+(output written to results\regressiontabelle.tex)
+
+. 
+. 
+. ** Koeffizientenplot der Regression
+. 
+. quietly: mixed index_politparti index_capital index_religion i.sex age hinc edulvl marital hsize dom
+> icil religion_comp wealth welfare_exp i.welfare_type || cntry: index_capital if e(sample), covarianc
+> e(unstructured) variance reml
+
+. 
+. 
+. coefplot, drop (_cons) xline (0) ylabel (1 "Index für Sozialkapital" 2 "Stärke an Religiosität" 3 "G
+> eschlecht: Weiblich" 4 "Alter" 5 "Haushaltsnettoeinkommen" 6 "Bildungsniveau" 7 "Familienstand"  8 "
+> Haushaltsgröße" 9 "Wohnsitz" 10 "Anteil an religiöser Bevölkerung" 11 "BIP pro Kopf" 12 "Gesamt-Sozi
+> alausgaben" 13 "Regimetyp: Liberal" 14 "Regimetyp: Konservativ-Korporatistisch" 15 "Regimetyp: Postk
+> ommunistisch" 16 "Regimetyp: Südeuropäisch/Mediterran") title("Effekte der unabhängigen Variablen", 
+> size(medium)) xtitle(" Index für Politische Partizipation", size(small)) graphregion(fcolor(white))
+
+. 
+. graph export "results\coefplot.pdf", replace
+file results\coefplot.pdf saved as PDF format
+
+. 
+. 
+. ** Modellierung von Cross-Level-Interaktionen
+. 
+. quietly: mixed index_politparti index_religion i.sex age i.hinc edulvl i.marital hsize domicil relig
+> ion_comp wealth welfare_exp c.index_capital##i.welfare_type || cntry: index_capital if e(sample), co
+> variance(unstructured) variance reml
+
+. margins, at(index_capital=(7 (10) 71) welfare_type=(1 2 3 4 5))
+
+Predictive margins                                      Number of obs = 13,873
+
+Expression: Linear prediction, fixed portion, predict()
+1._at:  index_capital =  7
+        welfare_type  =  1
+2._at:  index_capital =  7
+        welfare_type  =  2
+3._at:  index_capital =  7
+        welfare_type  =  3
+4._at:  index_capital =  7
+        welfare_type  =  4
+5._at:  index_capital =  7
+        welfare_type  =  5
+6._at:  index_capital = 17
+        welfare_type  =  1
+7._at:  index_capital = 17
+        welfare_type  =  2
+8._at:  index_capital = 17
+        welfare_type  =  3
+9._at:  index_capital = 17
+        welfare_type  =  4
+10._at: index_capital = 17
+        welfare_type  =  5
+11._at: index_capital = 27
+        welfare_type  =  1
+12._at: index_capital = 27
+        welfare_type  =  2
+13._at: index_capital = 27
+        welfare_type  =  3
+14._at: index_capital = 27
+        welfare_type  =  4
+15._at: index_capital = 27
+        welfare_type  =  5
+16._at: index_capital = 37
+        welfare_type  =  1
+17._at: index_capital = 37
+        welfare_type  =  2
+18._at: index_capital = 37
+        welfare_type  =  3
+19._at: index_capital = 37
+        welfare_type  =  4
+20._at: index_capital = 37
+        welfare_type  =  5
+21._at: index_capital = 47
+        welfare_type  =  1
+22._at: index_capital = 47
+        welfare_type  =  2
+23._at: index_capital = 47
+        welfare_type  =  3
+24._at: index_capital = 47
+        welfare_type  =  4
+25._at: index_capital = 47
+        welfare_type  =  5
+26._at: index_capital = 57
+        welfare_type  =  1
+27._at: index_capital = 57
+        welfare_type  =  2
+28._at: index_capital = 57
+        welfare_type  =  3
+29._at: index_capital = 57
+        welfare_type  =  4
+30._at: index_capital = 57
+        welfare_type  =  5
+31._at: index_capital = 67
+        welfare_type  =  1
+32._at: index_capital = 67
+        welfare_type  =  2
+33._at: index_capital = 67
+        welfare_type  =  3
+34._at: index_capital = 67
+        welfare_type  =  4
+35._at: index_capital = 67
+        welfare_type  =  5
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |     Margin   std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         _at |
+          1  |   1.653466   .3727772     4.44   0.000     .9228361    2.384096
+          2  |   .8925126   .2438361     3.66   0.000     .4146026    1.370423
+          3  |   .8509587   .2593817     3.28   0.001       .34258    1.359337
+          4  |   .6893811   .3151891     2.19   0.029     .0716218     1.30714
+          5  |   .0254913   .2439382     0.10   0.917    -.4526188    .5036013
+          6  |   2.159549   .3482685     6.20   0.000     1.476955    2.842142
+          7  |    1.34443   .2057945     6.53   0.000     .9410804     1.74778
+          8  |   1.429794   .2404341     5.95   0.000     .9585515    1.901036
+          9  |   .9394491   .3062584     3.07   0.002     .3391936    1.539705
+         10  |   .8044853   .1872244     4.30   0.000     .4375322    1.171438
+         11  |   2.665631   .3405067     7.83   0.000      1.99825    3.333012
+         12  |   1.796348   .2034678     8.83   0.000     1.397558    2.195137
+         13  |   2.008629   .2358845     8.52   0.000     1.546304    2.470954
+         14  |   1.189517   .3050068     3.90   0.000     .5917147    1.787319
+         15  |   1.583479   .1661889     9.53   0.000     1.257755    1.909204
+         16  |   3.171714   .3506058     9.05   0.000     2.484539    3.858889
+         17  |   2.248265   .2379063     9.45   0.000     1.781978    2.714553
+         18  |   2.587464   .2465312    10.50   0.000     2.104271    3.070656
+         19  |   1.439585   .3115267     4.62   0.000     .8290038    2.050166
+         20  |   2.362473   .1928811    12.25   0.000     1.984433    2.740514
+         21  |   3.677796   .3771336     9.75   0.000     2.938628    4.416965
+         22  |   2.700183   .2965672     9.10   0.000     2.118922    3.281444
+         23  |   3.166299   .2705864    11.70   0.000     2.635959    3.696638
+         24  |   1.689653   .3253514     5.19   0.000     1.051976     2.32733
+         25  |   3.141467   .2525987    12.44   0.000     2.646383    3.636552
+         26  |   4.183879   .4169663    10.03   0.000      3.36664    5.001118
+         27  |   3.152101   .3680452     8.56   0.000     2.430745    3.873456
+         28  |   3.745134   .3048928    12.28   0.000     3.147555    4.342713
+         29  |   1.939721   .3456053     5.61   0.000     1.262347    2.617095
+         30  |   3.920462   .3277616    11.96   0.000     3.278061    4.562862
+         31  |   4.689962   .4667094    10.05   0.000     3.775228    5.604695
+         32  |   3.604018   .4462229     8.08   0.000     2.729437    4.478599
+         33  |   4.323969   .3464179    12.48   0.000     3.645002    5.002935
+         34  |   2.189789   .3712377     5.90   0.000     1.462176    2.917401
+         35  |   4.699456   .4099608    11.46   0.000     3.895947    5.502964
+------------------------------------------------------------------------------
+
+. marginsplot, ytitle(Index für politische Partizipation) xtitle(Sozialkapital-Index) title("Cross-Lev
+> el-Interaktion zwischen Sozialkapital und Regimetyp") subtitle("mit Kontrollvariablen") legend(title
+>  ("Regimetyp", size(medium))) graphregion(fcolor(white)) name(controlled_interaction, replace)
+
+Variables that uniquely identify margins: index_capital welfare_type
+
+. 
+. graph export "results\cross-level-interaction.pdf", replace
+file results\cross-level-interaction.pdf saved as PDF format
+
+. 
+. 
+. ** Teststatistiken und Gütemaße
+. 
+. // Erklärte Varianz auf Mikro- und Makroebene
+. 
+. mixed index_politparti || cntry: if e(sample), variance reml
+
+Performing EM optimization ...
+
+Performing gradient-based optimization: 
+Iteration 0:   log restricted-likelihood = -29101.757  
+Iteration 1:   log restricted-likelihood = -29101.757  
+
+Computing standard errors ...
+
+Mixed-effects REML regression                   Number of obs     =     13,873
+Group variable: cntry                           Number of groups  =         22
+                                                Obs per group:
+                                                              min =         72
+                                                              avg =      630.6
+                                                              max =      1,030
+                                                Wald chi2(0)      =          .
+Log restricted-likelihood = -29101.757          Prob > chi2       =          .
+
+----------------------------------------------------------------------------------
+index_politparti | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-----------------+----------------------------------------------------------------
+           _cons |    2.11136   .1500708    14.07   0.000     1.817226    2.405493
+----------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
+-----------------------------+------------------------------------------------
+cntry: Identity              |
+                  var(_cons) |   .4870209   .1523627      .2637863    .8991722
+-----------------------------+------------------------------------------------
+               var(Residual) |    3.86014   .0463848       3.77029    3.952132
+------------------------------------------------------------------------------
+LR test vs. linear model: chibar2(01) = 1488.45       Prob >= chibar2 = 0.0000
+
+. 
+. mixed index_politparti index_capital index_religion i.sex age hinc edulvl marital hsize domicil reli
+> gion_comp wealth welfare_exp i.welfare_type || cntry: if e(sample), variance reml
+
+Performing EM optimization ...
+
+Performing gradient-based optimization: 
+Iteration 0:   log restricted-likelihood = -28670.843  
+Iteration 1:   log restricted-likelihood = -28670.843  
+
+Computing standard errors ...
+
+Mixed-effects REML regression                   Number of obs     =     13,873
+Group variable: cntry                           Number of groups  =         22
+                                                Obs per group:
+                                                              min =         72
+                                                              avg =      630.6
+                                                              max =      1,030
+                                                Wald chi2(16)     =    1122.96
+Log restricted-likelihood = -28670.843          Prob > chi2       =     0.0000
+
+---------------------------------------------------------------------------------------------
+           index_politparti | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+----------------------------+----------------------------------------------------------------
+              index_capital |   .0429913     .00217    19.81   0.000     .0387381    .0472445
+             index_religion |  -.0031466   .0010717    -2.94   0.003     -.005247   -.0010462
+                            |
+                        sex |
+                    Female  |   .0433149   .0337237     1.28   0.199    -.0227823    .1094121
+                        age |  -.0022501   .0010529    -2.14   0.033    -.0043137   -.0001864
+                       hinc |   .0732604   .0069278    10.57   0.000     .0596822    .0868385
+                     edulvl |    .061688   .0050855    12.13   0.000     .0517206    .0716555
+                    marital |  -.0519352   .0139949    -3.71   0.000    -.0793648   -.0245056
+                      hsize |  -.0366335   .0162047    -2.26   0.024    -.0683942   -.0048729
+                    domicil |  -.0749233   .0135914    -5.51   0.000    -.1015621   -.0482846
+              religion_comp |  -.0008455   .0030222    -0.28   0.780    -.0067688    .0050779
+                     wealth |   .0033943   .0036843     0.92   0.357    -.0038267    .0106153
+                welfare_exp |  -.0001219   .0000585    -2.08   0.037    -.0002366   -7.24e-06
+                            |
+               welfare_type |
+                   Liberal  |  -1.283084   .3957164    -3.24   0.001    -2.058674   -.5074942
+Conservative-Corporatistic  |  -.7562791   .2046253    -3.70   0.000    -1.157337   -.3552208
+            Post-Communist  |  -2.546276   .6317309    -4.03   0.000    -3.784446   -1.308106
+                 Latin-Rim  |  -1.473548   .4516377    -3.26   0.001    -2.358742   -.5883548
+                            |
+                      _cons |   2.887186   .8039686     3.59   0.000     1.311436    4.462935
+---------------------------------------------------------------------------------------------
+
+------------------------------------------------------------------------------
+  Random-effects parameters  |   Estimate   Std. err.     [95% conf. interval]
+-----------------------------+------------------------------------------------
+cntry: Identity              |
+                  var(_cons) |   .0533952   .0232716      .0227257    .1254549
+-----------------------------+------------------------------------------------
+               var(Residual) |   3.611334   .0434095      3.527248    3.697426
+------------------------------------------------------------------------------
+LR test vs. linear model: chibar2(01) = 77.84         Prob >= chibar2 = 0.0000
+
+. 
+. 
+. clear
+
+. 
+end of do-file
+
+. 
+end of do-file
+
+. exit, clear
