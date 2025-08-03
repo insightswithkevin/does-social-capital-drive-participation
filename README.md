@@ -41,3 +41,11 @@ This project is organized to enable reproducible analysis using Stata.
 - `logs/` – Execution logs from Stata
 
 To reproduce the analysis, run `jobs/master.do` from the root folder.
+
+## 📚 Citation
+
+If you use or refer to this project, please cite as follows:
+
+> Okonkwo, Kevin (2023). *Welchen Einfluss hat der Wohlfahrtsstaat auf die Beziehung zwischen Sozialkapital und politischer Teilhabe? Eine Untersuchung anhand des European Social Surveys Round 9*. Term Thesis, Humboldt University of Berlin, Department of Social Sciences.
+
+For questions or collaboration, feel free to contact: kevin.ikenna.okonkwo@gmail.com
