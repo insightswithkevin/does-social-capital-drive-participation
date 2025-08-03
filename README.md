@@ -29,3 +29,15 @@ This repository contains a term paper written during my Bachelor's studies. It e
 - Social capital has a significant positive effect on political participation.
 - No consistent evidence that welfare state types or social spending moderate this effect.
 - Possible limitations due to operationalization of welfare state dimensions.
+
+## 📁 Folder Structure
+
+This project is organized to enable reproducible analysis using Stata.
+
+- `inputs/` – Raw datasets (ESS, social expenditure, etc.)
+- `jobs/` – All Stata scripts (main: `master.do`)
+- `outputs/` – Cleaned data, merged datasets
+- `results/` – Graphs and regression output
+- `logs/` – Execution logs from Stata
+
+To reproduce the analysis, run `jobs/master.do` from the root folder.
